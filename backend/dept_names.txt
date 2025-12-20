@@ -1,0 +1,5 @@
+ID: 6c781d04-6b76-42fa-8b88-5c0d4b5dc99d | Name: "Accounting and Finance" | Head: "Isha" | Email: "ishareddy1w@gmail.com"
+ID: 93c82bc7-15d4-4cf9-a79b-d725b280363a | Name: "Customer Support" | Head: "Shubham Sai" | Email: "shubham.sai1327@gmail.com"
+ID: 2431348d-0c83-4086-9fd8-8b59f6ab04dd | Name: "Human Resources" | Head: "Abhishek" | Email: "abhishektekisho@gmail.com"
+ID: 566aebb3-8b29-4896-b677-e11e24fb8df8 | Name: "Operations" | Head: "Sivajanya" | Email: "sivajanyatripurasetti@gmail.com"
+ID: 10b8f5c5-4fbc-4315-900e-8ee989f6f5f1 | Name: "Sales" | Head: "shubham" | Email: "shubham.sai1327@gmail.com"
