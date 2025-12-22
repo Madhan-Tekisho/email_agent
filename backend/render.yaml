@@ -12,8 +12,10 @@ services:
         value: production
       # Add your environment variables here
       # You can also add these via the Render dashboard after deployment
-      - key: DATABASE_URL
-        sync: false # Set to true if using Render's PostgreSQL
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: OPENAI_API_KEY
