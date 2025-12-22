@@ -1,34 +1,62 @@
-import { query } from '../db';
+import { supabase } from '../db';
 
 export const DepartmentModel = {
     getAll: async () => {
-        const res = await query('SELECT * FROM departments ORDER BY name');
-        return res.rows;
+        const { data, error } = await supabase
+            .from('departments')
+            .select('*')
+            .order('name');
+
+        if (error) {
+            console.error('DepartmentModel.getAll error:', error);
+            throw error;
+        }
+
+        return data || [];
     },
 
     getById: async (id: string | number) => {
-        const res = await query('SELECT * FROM departments WHERE id = $1', [id]);
-        return res.rows[0];
+        const { data, error } = await supabase
+            .from('departments')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') {
+            console.error('DepartmentModel.getById error:', error);
+            throw error;
+        }
+
+        return data;
     },
 
     getHistory: async (deptId: string | number) => {
-        // Fetch history records
-        const res = await query(`
-          SELECT 
-              h.id, 
-              h.head_name, 
-              h.head_email, 
-              h.start_date, 
-              h.end_date,
-              h.department_id,
-              d.name as department_name,
-              (EXTRACT(EPOCH FROM (h.end_date - h.start_date)) / 86400)::int as duration_days
-          FROM public.department_head_history h
-          JOIN departments d ON h.department_id = d.id
-          WHERE h.department_id = $1
-          ORDER BY h.end_date DESC
-      `, [deptId]);
-        return res.rows;
+        const { data, error } = await supabase
+            .from('department_head_history')
+            .select(`
+                id, head_name, head_email, start_date, end_date, department_id, created_at,
+                departments (name)
+            `)
+            .eq('department_id', deptId)
+            .order('end_date', { ascending: false });
+
+        if (error) {
+            console.error('DepartmentModel.getHistory error:', error);
+            throw error;
+        }
+
+        // Transform to match original format with duration calculation
+        return (data || []).map(row => {
+            const startDate = new Date(row.start_date);
+            const endDate = new Date(row.end_date);
+            const durationDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            return {
+                ...row,
+                department_name: (row.departments as any)?.name || null,
+                duration_days: durationDays
+            };
+        });
     },
 
     updateHead: async (id: string | number, headName: string, headEmail: string) => {
@@ -36,17 +64,36 @@ export const DepartmentModel = {
             console.log(`Updating head for dept ${id} to ${headName} (${headEmail})`);
 
             // 1. Get current head to archive
-            const currentRes = await query('SELECT * FROM departments WHERE id = $1', [id]);
-            const current = currentRes.rows[0];
+            const { data: current, error: currentError } = await supabase
+                .from('departments')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (currentError) {
+                console.error('Failed to fetch current department:', currentError);
+                throw currentError;
+            }
 
             if (current) {
                 console.log("Archiving current head:", current);
+
                 // Determine start_date
                 let startDate: any = new Date();
                 try {
-                    const lastHistoryRes = await query('SELECT end_date FROM public.department_head_history WHERE department_id = $1 ORDER BY end_date DESC LIMIT 1', [id]);
-                    const lastEndDate = lastHistoryRes.rows[0]?.end_date;
-                    startDate = lastEndDate || current.created_at || new Date();
+                    const { data: lastHistory, error: histError } = await supabase
+                        .from('department_head_history')
+                        .select('end_date')
+                        .eq('department_id', id)
+                        .order('end_date', { ascending: false })
+                        .limit(1)
+                        .single();
+
+                    if (!histError && lastHistory?.end_date) {
+                        startDate = lastHistory.end_date;
+                    } else if (current.created_at) {
+                        startDate = current.created_at;
+                    }
                     console.log(`Archive start_date determined as: ${startDate}`);
                 } catch (e: any) {
                     console.error("Failed to fetch last history:", e.message);
@@ -54,23 +101,42 @@ export const DepartmentModel = {
 
                 // Archive current
                 try {
-                    await query(`
-                        INSERT INTO public.department_head_history (department_id, head_name, head_email, start_date, end_date)
-                        VALUES ($1, $2, $3, $4, NOW())
-                    `, [id, current.head_name, current.head_email, startDate]);
+                    const { error: insertError } = await supabase
+                        .from('department_head_history')
+                        .insert({
+                            department_id: id,
+                            head_name: current.head_name,
+                            head_email: current.head_email,
+                            start_date: startDate,
+                            end_date: new Date().toISOString()
+                        });
+
+                    if (insertError) {
+                        console.error("Failed to archive history:", insertError);
+                        throw insertError;
+                    }
                     console.log("Archive successful");
                 } catch (e: any) {
                     console.error("Failed to archive history:", e.message);
-                    throw e; // Critical failure
+                    throw e;
                 }
             } else {
                 console.warn("No current department found to archive");
             }
 
             // 2. Update to new
-            const updateRes = await query('UPDATE departments SET head_name = $1, head_email = $2 WHERE id = $3', [headName, headEmail, id]);
+            const { data: updateResult, error: updateError } = await supabase
+                .from('departments')
+                .update({ head_name: headName, head_email: headEmail })
+                .eq('id', id);
+
+            if (updateError) {
+                console.error("Update failed:", updateError);
+                throw updateError;
+            }
+
             console.log("Update successful");
-            return updateRes;
+            return { rows: updateResult || [], rowCount: 1 };
         } catch (e) {
             console.error("Department update failed:", e);
             throw e;
@@ -78,40 +144,34 @@ export const DepartmentModel = {
     },
 
     getHeadStats: async (headEmail: string, startDate: string, endDate: string) => {
-        // Stats:
-        // 1. CC'd: Emails where cc_email_sent_to contains headEmail within date range
-        // 2. Pending: Emails created in range with 'needs_review' (regardless of current status? User asked for "Pending Reviews". I will count those that WERE pending or ARE pending. Actually simplest "pending reviews" usually means currently pending, but for a past person, it means "how many reviews did they have pending?". I'll assume it means "Total emails that needed review during their tenure" i.e. status='needs_review' OR 'human_answered' (implied review done))
-        // Let's stick to the prompt: "number of emails that specific dept head worked on including the total emails he got both in cc ,pending reviews, resoved by him."
-        // "Pending Reviews" likely means emails that went to 'needs_review' status.
-        // "Resolved by him" means 'human_answered'.
+        // CC Count - emails where cc_email_sent_to contains headEmail within date range
+        const { data: ccData, error: ccError } = await supabase
+            .from('emails')
+            .select('id')
+            .ilike('cc_email_sent_to', `%${headEmail}%`)
+            .gte('created_at', startDate)
+            .lte('created_at', endDate);
 
-        // CC Count
-        const ccRes = await query(`
-            SELECT COUNT(*) as count FROM emails 
-            WHERE cc_email_sent_to ILIKE $1 
-            AND created_at >= $2 AND created_at <= $3
-        `, [`%${headEmail}%`, startDate, endDate]);
+        // Pending Reviews - emails that required human review during tenure
+        const { data: pendingData, error: pendingError } = await supabase
+            .from('emails')
+            .select('id')
+            .in('status', ['needs_review', 'human_answered'])
+            .gte('created_at', startDate)
+            .lte('created_at', endDate);
 
-        // "Pending Reviews" (Emails that required human review during tenure)
-        // We filter by status that implies review (needs_review, human_answered)
-        const pendingRes = await query(`
-            SELECT COUNT(*) as count FROM emails 
-            WHERE (status = 'needs_review' OR status = 'human_answered')
-            AND created_at >= $1 AND created_at <= $2
-        `, [startDate, endDate]);
-
-        // "Resolved by him" (Emails answered manually during tenure)
-        const resolvedRes = await query(`
-            SELECT COUNT(*) as count FROM emails 
-            WHERE status = 'human_answered'
-            AND created_at >= $1 AND created_at <= $2
-            -- We ideally check who resolved it, but we lack actor ID. Assuming all human answers in this tenure associated with this head if we don't have granular logs.
-        `, [startDate, endDate]);
+        // Resolved - emails answered manually during tenure
+        const { data: resolvedData, error: resolvedError } = await supabase
+            .from('emails')
+            .select('id')
+            .eq('status', 'human_answered')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate);
 
         return {
-            ccCount: parseInt(ccRes.rows[0].count),
-            pendingCount: parseInt(pendingRes.rows[0].count),
-            resolvedCount: parseInt(resolvedRes.rows[0].count)
+            ccCount: ccData?.length || 0,
+            pendingCount: pendingData?.length || 0,
+            resolvedCount: resolvedData?.length || 0
         };
     }
 };

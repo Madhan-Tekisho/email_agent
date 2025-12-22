@@ -1,44 +1,100 @@
-import { query } from '../db';
+import { supabase } from '../db';
 
 export const EmailModel = {
     getPendingAndReview: async () => {
-        return query(`
-        SELECT e.id, e.subject, e.status, e.confidence_score as confidence,
-               e.body_text, e.generated_reply, e.from_email, e.created_at, e.priority, e.intent, e.token_used,
-               d.name as dept_name
-        FROM emails e
-        LEFT JOIN departments d ON e.classified_dept_id = d.id
-        -- WHERE e.status = 'needs_review' OR e.status = 'pending' (Removed to show all emails)
-        ORDER BY e.created_at DESC
-    `);
+        const { data, error } = await supabase
+            .from('emails')
+            .select(`
+                id, subject, status, confidence_score, body_text, generated_reply, 
+                from_email, created_at, priority, intent, token_used,
+                departments (name)
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('getPendingAndReview error:', error);
+            throw error;
+        }
+
+        // Transform to match original format
+        return {
+            rows: data?.map(row => ({
+                ...row,
+                confidence: row.confidence_score,
+                dept_name: (row.departments as any)?.name || null
+            })) || []
+        };
     },
 
     getMetrics: async () => {
-        const totalRes = await query('SELECT COUNT(*) as count FROM emails');
-        const queueRes = await query("SELECT COUNT(*) as count FROM emails WHERE status = 'needs_review'");
-        const sentRes = await query("SELECT COUNT(*) as count FROM emails WHERE status IN ('human_answered', 'rag_answered', 'fallback_sent')");
-        const confRes = await query('SELECT AVG(confidence_score) as avg FROM emails');
-        const tokenRes = await query('SELECT SUM(token_used) as total_tokens FROM emails');
+        // Total emails count
+        const { count: total, error: totalError } = await supabase
+            .from('emails')
+            .select('*', { count: 'exact', head: true });
+
+        // Queue count (needs_review)
+        const { count: queue, error: queueError } = await supabase
+            .from('emails')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'needs_review');
+
+        // Sent count
+        const { count: sent, error: sentError } = await supabase
+            .from('emails')
+            .select('*', { count: 'exact', head: true })
+            .in('status', ['human_answered', 'rag_answered', 'fallback_sent']);
+
+        // Average confidence
+        const { data: confData, error: confError } = await supabase
+            .from('emails')
+            .select('confidence_score');
+
+        // Total tokens
+        const { data: tokenData, error: tokenError } = await supabase
+            .from('emails')
+            .select('token_used');
+
+        const avgConfidence = confData?.length
+            ? confData.reduce((sum, row) => sum + (parseFloat(row.confidence_score) || 0), 0) / confData.length
+            : 0;
+
+        const totalTokens = tokenData?.reduce((sum, row) => sum + (parseInt(row.token_used) || 0), 0) || 0;
 
         return {
-            total: parseInt(totalRes.rows[0].count),
-            queue: parseInt(queueRes.rows[0].count),
-            sent: parseInt(sentRes.rows[0].count),
-            avgConfidence: parseFloat(confRes.rows[0].avg) || 0,
-            totalTokens: parseInt(tokenRes.rows[0].total_tokens) || 0
+            total: total || 0,
+            queue: queue || 0,
+            sent: sent || 0,
+            avgConfidence,
+            totalTokens
         };
     },
 
     getByIdWithDraft: async (id: string | number) => {
-        const res = await query(`
-        SELECT e.* 
-        FROM emails e 
-        WHERE e.id = $1
-    `, [id]);
-        return res.rows[0];
+        const { data, error } = await supabase
+            .from('emails')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('getByIdWithDraft error:', error);
+            return null;
+        }
+
+        return data;
     },
 
     updateStatus: async (id: string | number, status: string) => {
-        return query("UPDATE emails SET status = $1 WHERE id = $2", [status, id]);
+        const { data, error } = await supabase
+            .from('emails')
+            .update({ status })
+            .eq('id', id);
+
+        if (error) {
+            console.error('updateStatus error:', error);
+            throw error;
+        }
+
+        return { rows: data || [], rowCount: 1 };
     }
 };

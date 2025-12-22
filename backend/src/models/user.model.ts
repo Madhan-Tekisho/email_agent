@@ -1,4 +1,4 @@
-import { query } from '../db';
+import { supabase } from '../db';
 
 export interface User {
     id: string;
@@ -11,27 +11,52 @@ export interface User {
 }
 
 export const createUser = async (email: string, passwordHash: string, name?: string, role: string = 'employee', departmentId?: string): Promise<User> => {
-    const result = await query(
-        `INSERT INTO users (user_email, password_hash, name, role, department_id)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING *`,
-        [email, passwordHash, name, role, departmentId]
-    );
-    return result.rows[0];
+    const { data, error } = await supabase
+        .from('users')
+        .insert({
+            user_email: email,
+            password_hash: passwordHash,
+            name,
+            role,
+            department_id: departmentId
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('createUser error:', error);
+        throw error;
+    }
+
+    return data;
 };
 
 export const findUserByEmail = async (email: string): Promise<User | null> => {
-    const result = await query(
-        `SELECT * FROM users WHERE user_email = $1`,
-        [email]
-    );
-    return result.rows[0] || null;
+    const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('user_email', email)
+        .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('findUserByEmail error:', error);
+        return null;
+    }
+
+    return data || null;
 };
 
 export const findUserById = async (id: string): Promise<User | null> => {
-    const result = await query(
-        `SELECT * FROM users WHERE id = $1`,
-        [id]
-    );
-    return result.rows[0] || null;
+    const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (error && error.code !== 'PGRST116') {
+        console.error('findUserById error:', error);
+        return null;
+    }
+
+    return data || null;
 };

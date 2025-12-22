@@ -1,28 +1,44 @@
 
-import { query } from '../db';
+import { supabase } from '../db';
 import bcrypt from 'bcryptjs';
 
 const seedSuperAdmin = async () => {
-    const email = 'superadmin@mailguard.ai';
-    const password = 'SuperSecret123!';
-    const name = 'System Administrator';
+    const email = 'rajkiranrao205@gmail.com';
+    const password = '12345678';
+    const name = 'rajkiran';
 
     try {
         console.log(`Checking for existing SuperAdmin: ${email}`);
-        const existing = await query('SELECT id FROM users WHERE user_email = $1', [email]);
 
-        if (existing.rows.length > 0) {
-            console.log('SuperAdmin already exists. Updating role to be sure...');
-            await query("UPDATE users SET role = 'SuperAdmin' WHERE user_email = $1", [email]);
-            console.log('Role updated.');
+        const { data: existing, error: checkError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('user_email', email)
+            .single();
+
+        if (existing) {
+            console.log('User already exists. Updating role to SuperAdmin...');
+            const { error: updateError } = await supabase
+                .from('users')
+                .update({ role: 'SuperAdmin', name })
+                .eq('user_email', email);
+
+            if (updateError) throw updateError;
+            console.log('Role updated to SuperAdmin.');
         } else {
             console.log('Creating new SuperAdmin...');
             const hash = await bcrypt.hash(password, 10);
-            await query(
-                `INSERT INTO users (user_email, password_hash, name, role) 
-                 VALUES ($1, $2, $3, 'SuperAdmin')`,
-                [email, hash, name]
-            );
+
+            const { error: insertError } = await supabase
+                .from('users')
+                .insert({
+                    user_email: email,
+                    password_hash: hash,
+                    name,
+                    role: 'SuperAdmin'
+                });
+
+            if (insertError) throw insertError;
             console.log(`SuperAdmin created successfully.\nEmail: ${email}\nPassword: ${password}`);
         }
         process.exit(0);

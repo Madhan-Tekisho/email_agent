@@ -1,24 +1,29 @@
-import { Pool } from 'pg';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
 
 dotenv.config();
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
-export const query = (text: string, params?: any[]) => pool.query(text, params);
+if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY environment variables');
+}
 
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey);
+
+// Initialize database - since schema already exists in Supabase, 
+// this just logs success. No need to run schema.sql via HTTP client.
 export const initDb = async () => {
-    const schemaPath = path.join(__dirname, 'schema.sql');
-    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
     try {
-        await pool.query(schemaSql);
-        console.log('Database initialized successfully');
+        // Test connection by querying departments
+        const { data, error } = await supabase.from('departments').select('id').limit(1);
+        if (error) {
+            console.error('Database connection test failed:', error.message);
+        } else {
+            console.log('Database connected successfully via Supabase HTTP client');
+        }
     } catch (err) {
-        console.error('Error initializing database:', err);
+        console.error('Error connecting to database:', err);
     }
 };
