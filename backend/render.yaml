@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: email-agent-backend
+    runtime: node
+    rootDir: backend
+    region: oregon # or choose: ohio, frankfurt, singapore
+    plan: free # options: free, starter, standard, pro, etc.
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Add your environment variables here
+      # You can also add these via the Render dashboard after deployment
+      - key: DATABASE_URL
+        sync: false # Set to true if using Render's PostgreSQL
+      - key: JWT_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: IMAP_USER
+        sync: false
+      - key: IMAP_PASSWORD
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+    healthCheckPath: /
+    autoDeploy: true
