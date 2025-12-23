@@ -1,56 +1,64 @@
 import imaps from 'imap-simple';
 import nodemailer from 'nodemailer';
 import { simpleParser } from 'mailparser';
+import { supabase } from '../db';
 
 export class EmailService {
-    private transporter;
-    private imapConfig;
+    private transporter: any;
+    private imapConfig: any;
 
     constructor() {
+        // Default from env (fallback)
+        this.initializeTransport(process.env.GMAIL_USER || '', process.env.GMAIL_PASS || '');
+    }
+
+    async init() {
+        console.log("Loading system credentials from DB...");
+        const { data: userRow } = await supabase.from('system_settings').select('email_value').eq('email_key', 'GMAIL_USER').single();
+        const { data: passRow } = await supabase.from('system_settings').select('email_value').eq('email_key', 'GMAIL_PASS').single();
+
+        if (userRow && passRow) {
+            console.log("Credentials found in DB. Overriding env.");
+            this.updateConfig(userRow.email_value, passRow.email_value);
+        } else {
+            console.log("No credentials in DB. Using .env defaults.");
+        }
+    }
+
+    private initializeTransport(user: string, pass: string) {
         this.transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: process.env.GMAIL_USER,
-                pass: process.env.GMAIL_PASS
+                user: user,
+                pass: pass
             }
         });
 
         this.imapConfig = {
             imap: {
-                user: process.env.GMAIL_USER || '',
-                password: process.env.GMAIL_PASS || '',
+                user: user,
+                password: pass,
                 host: 'imap.gmail.com',
                 port: 993,
                 tls: true,
                 tlsOptions: { rejectUnauthorized: false },
-                authTimeout: 60000, // Increased for slower networks
+                authTimeout: 60000,
                 connTimeout: 60000,
                 keepalive: false
             }
         };
     }
 
+
     updateConfig(email: string, password: string) {
-        process.env.GMAIL_USER = email;
-        process.env.GMAIL_PASS = password;
-
-        this.transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: email,
-                pass: password
-            }
-        });
-
-        this.imapConfig.imap.user = email;
-        this.imapConfig.imap.password = password;
+        this.initializeTransport(email, password);
         console.log(`Email configuration updated for user: ${email}`);
     }
 
     async sendEmail(to: string, subject: string, body: string, inReplyTo?: string, cc?: string, bcc?: string) {
         console.log(`Sending email to ${to} (CC: ${cc}, BCC: ${bcc}) with subject: ${subject}`);
         const mailOptions: any = {
-            from: `"[Email-agent]" <${process.env.GMAIL_USER}>`,
+            from: `"[Email-agent]" <${this.imapConfig.imap.user}>`,
             to,
             subject,
             text: body,
@@ -76,7 +84,7 @@ export class EmailService {
 
     async fetchUnreadEmails() {
         console.log('Connecting to IMAP server...');
-        console.log('IMAP User:', process.env.GMAIL_USER);
+        console.log('IMAP User:', this.imapConfig.imap.user);
 
         try {
             const connection = await imaps.connect(this.imapConfig);
@@ -123,7 +131,6 @@ export class EmailService {
             connection.end();
             console.log('IMAP connection closed');
             return emails;
-            return [];
         } catch (error: any) {
             if (error.code === 'ECONNRESET' || error.syscall === 'getaddrinfo') {
                 console.warn("Network Error: Could not connect to Gmail (ECONNRESET/ENOTFOUND). Retrying in next cycle...");

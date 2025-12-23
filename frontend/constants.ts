@@ -1,7 +1,7 @@
 import { Department, EmailData, EmailStatus, Priority, DocumentItem, Intent, RagStats } from './types';
 
 export const COMPANIES = [
-  { id: 'c-1', name: 'Acme Corp' },
+  { id: 'c-1', name: 'Tekisho' },
   { id: 'c-2', name: 'Globex Inc' }
 ];
 

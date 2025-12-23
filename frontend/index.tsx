@@ -28,12 +28,17 @@ const App: React.FC = () => {
   const [agentActive, setAgentActive] = useState(true);
   const [volumeView, setVolumeView] = useState<'Weekly View' | 'Monthly View'>('Weekly View');
 
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot-password' | 'verify-otp' | 'reset-password'>('login');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
+
+  // Forgot Password State
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [selectedCompanyId, setSelectedCompanyId] = useState(COMPANIES[0].id);
   const [backendStats, setBackendStats] = useState<any>(null);
 
@@ -164,6 +169,40 @@ const App: React.FC = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.forgotPassword(resetEmail);
+      alert(`OTP sent to ${resetEmail}`);
+      setAuthMode('verify-otp');
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.verifyOtp(resetEmail, resetOtp);
+      setAuthMode('reset-password');
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.resetPassword(resetEmail, resetOtp, newPassword);
+      alert('Password reset successfully. Please login.');
+      setAuthMode('login');
+      setLoginEmail(resetEmail);
+      setLoginPassword('');
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
   const handleSimulateIncoming = async () => {
     if (!user) return;
     const subjects = ["Access Denied: Production", "Invoice Mismatch #992", "Policy Update Request", "Critical System Failure"];
@@ -214,7 +253,16 @@ const App: React.FC = () => {
     setEmails(sorted);
   };
 
-
+  const handleToggleAgent = async () => {
+    try {
+      const newState = !agentActive;
+      await api.toggleAgentStatus(newState);
+      setAgentActive(newState);
+    } catch (e: any) {
+      console.error("Failed to toggle agent status", e);
+      alert("Failed to toggle AI Agent status");
+    }
+  };
 
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -344,9 +392,9 @@ const App: React.FC = () => {
         </div>
 
         {/* Charts & Graphs Area */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Trend Chart */}
-          <div className="md:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">Email Volume Trend</h3>
@@ -447,28 +495,28 @@ const App: React.FC = () => {
               })()}
             </div>
           </div>
-        </div>
 
-        {/* Department Load */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 className="font-bold text-slate-900 text-sm mb-6">Department Workload</h3>
-          <div className="space-y-5">
-            {Object.values(Department).map(dept => {
-              const count = emails.filter(e => e.department === dept).length;
-              const total = emails.length || 1;
-              const percent = (count / total) * 100;
-              return (
-                <div key={dept}>
-                  <div className="flex justify-between text-xs font-semibold text-slate-600 mb-2">
-                    <span>{dept}</span>
-                    <span className="text-slate-900">{count} <span className="text-slate-400 font-normal">({Math.round(percent)}%)</span></span>
+          {/* Department Load */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <h3 className="font-bold text-slate-900 text-sm mb-6">Department Workload</h3>
+            <div className="space-y-5">
+              {Object.values(Department).map(dept => {
+                const count = emails.filter(e => e.department === dept).length;
+                const total = emails.length || 1;
+                const percent = (count / total) * 100;
+                return (
+                  <div key={dept}>
+                    <div className="flex justify-between text-xs font-semibold text-slate-600 mb-2">
+                      <span>{dept}</span>
+                      <span className="text-slate-900">{count} <span className="text-slate-400 font-normal">({Math.round(percent)}%)</span></span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div className="bg-slate-800 h-2 rounded-full shadow-sm" style={{ width: `${percent}%` }}></div>
+                    </div>
                   </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div className="bg-slate-800 h-2 rounded-full shadow-sm" style={{ width: `${percent}%` }}></div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div >
@@ -476,77 +524,118 @@ const App: React.FC = () => {
     );
   };
 
-  const renderAnalytics = () => (
-    <div className="space-y-6 animate-fade-in">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Quality Distribution */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 className="font-bold text-slate-900 text-sm mb-6">Response Quality</h3>
-          <div className="flex items-center justify-center h-48 relative">
-            <div className="w-32 h-32 rounded-full border-[12px] border-slate-50 flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 border-[12px] border-emerald-500 rounded-full" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 65%, 0 65%)' }}></div>
-              <div className="absolute inset-0 border-[12px] border-blue-600 rounded-full" style={{ clipPath: 'polygon(0 65%, 100% 65%, 100% 90%, 0 90%)' }}></div>
-              <div className="absolute inset-0 border-[12px] border-amber-500 rounded-full" style={{ clipPath: 'polygon(0 90%, 100% 90%, 100% 100%, 0 100%)' }}></div>
-              <div className="z-10 text-center bg-white w-20 h-20 rounded-full flex flex-col items-center justify-center shadow-sm">
-                <span className="text-2xl font-bold text-slate-900">94%</span>
+  const renderAnalytics = () => {
+    // Calculate Response Quality based on email statuses
+    const totalEmails = emails.length || 1;
+    const autoResolved = emails.filter(e => e.status === EmailStatus.AUTO_RESOLVED || e.status === EmailStatus.SENT).length;
+    const pending = emails.filter(e => e.status === EmailStatus.PENDING || e.status === EmailStatus.NEW).length;
+    const review = emails.filter(e => e.status === EmailStatus.NEEDS_REVIEW || e.status === EmailStatus.SLA_BREACHED).length;
+
+    const excellentPercent = Math.round((autoResolved / totalEmails) * 100);
+    const pendingPercent = Math.round((pending / totalEmails) * 100);
+    const reviewPercent = Math.round((review / totalEmails) * 100);
+
+    // Calculate Priority Breakdown
+    const highCount = emails.filter(e => e.priority === Priority.HIGH).length;
+    const medCount = emails.filter(e => e.priority === Priority.MEDIUM).length;
+    const lowCount = emails.filter(e => e.priority === Priority.LOW).length;
+    const maxCount = Math.max(highCount, medCount, lowCount, 1);
+
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Quality Distribution - Using horizontal bars for clarity */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <h3 className="font-bold text-slate-900 text-sm mb-6">Response Quality</h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-xs font-medium text-slate-600 mb-1.5">
+                  <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></div> Excellent</span>
+                  <span>{autoResolved} ({excellentPercent}%)</span>
+                </div>
+                <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                  <div className="h-3 rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${excellentPercent}%` }}></div>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-xs font-medium text-slate-600 mb-1.5">
+                  <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-blue-600 rounded-sm"></div> Good</span>
+                  <span>{pending} ({pendingPercent}%)</span>
+                </div>
+                <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                  <div className="h-3 rounded-full bg-blue-600 transition-all duration-500" style={{ width: `${pendingPercent}%` }}></div>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-xs font-medium text-slate-600 mb-1.5">
+                  <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-amber-500 rounded-sm"></div> Needs Review</span>
+                  <span>{review} ({reviewPercent}%)</span>
+                </div>
+                <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                  <div className="h-3 rounded-full bg-amber-500 transition-all duration-500" style={{ width: `${reviewPercent}%` }}></div>
+                </div>
               </div>
             </div>
+            <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+              <span className="text-3xl font-bold text-emerald-600">{excellentPercent}%</span>
+              <p className="text-xs text-slate-500 mt-1">Overall Success Rate</p>
+            </div>
           </div>
-          <div className="flex justify-center gap-4 mt-6">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600"><div className="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></div> Excellent</div>
-            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600"><div className="w-2.5 h-2.5 bg-blue-600 rounded-sm"></div> Good</div>
-            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600"><div className="w-2.5 h-2.5 bg-amber-500 rounded-sm"></div> Review</div>
-          </div>
-        </div>
 
-        {/* Resolution Rates */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 className="font-bold text-slate-900 text-sm mb-6">Resolution by Department</h3>
-          <div className="space-y-4">
-            {[
-              { label: 'Support', val: 85, color: 'bg-blue-600' },
-              { label: 'Sales', val: 78, color: 'bg-blue-600' },
-              { label: 'HR', val: 92, color: 'bg-emerald-500' },
-              { label: 'IT', val: 88, color: 'bg-blue-600' },
-              { label: 'Legal', val: 65, color: 'bg-amber-500' },
-            ].map(d => (
-              <div key={d.label}>
-                <div className="flex justify-between text-xs text-slate-600 mb-1.5 font-medium">
-                  <span>{d.label}</span>
-                  <span>{d.val}%</span>
-                </div>
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                  <div className={`h-1.5 rounded-full ${d.color}`} style={{ width: `${d.val}%` }}></div>
-                </div>
-              </div>
-            ))}
+          {/* Resolution Rates */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <h3 className="font-bold text-slate-900 text-sm mb-6">Resolution by Department</h3>
+            <div className="space-y-4">
+              {Object.values(Department).map(dept => {
+                const deptEmails = emails.filter(e => e.department === dept);
+                const deptTotal = deptEmails.length || 1;
+                const deptResolved = deptEmails.filter(e => e.status === EmailStatus.SENT || e.status === EmailStatus.AUTO_RESOLVED).length;
+                const resolutionRate = Math.round((deptResolved / deptTotal) * 100);
+                const color = resolutionRate >= 80 ? 'bg-emerald-500' : resolutionRate >= 60 ? 'bg-blue-600' : 'bg-amber-500';
+                return (
+                  <div key={dept}>
+                    <div className="flex justify-between text-xs text-slate-600 mb-1.5 font-medium">
+                      <span>{dept}</span>
+                      <span>{resolutionRate}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${resolutionRate}%` }}></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Priority Breakdown */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 className="font-bold text-slate-900 text-sm mb-6">Priority Breakdown</h3>
-          <div className="flex items-end justify-between h-40 gap-4 px-4 border-b border-slate-100 pb-2">
-            {[
-              { label: 'High', val: 30, color: 'bg-red-500' },
-              { label: 'Med', val: 45, color: 'bg-amber-500' },
-              { label: 'Low', val: 25, color: 'bg-emerald-500' }
-            ].map(p => (
-              <div key={p.label} className="flex-1 flex flex-col items-center group">
-                <div className={`w-full rounded-t-md ${p.color} bg-opacity-90 group-hover:bg-opacity-100 transition-all`} style={{ height: `${p.val * 2}%` }}></div>
-
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between mt-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
-            <span>High</span>
-            <span>Medium</span>
-            <span>Low</span>
+          {/* Priority Breakdown - Using proper scaling */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <h3 className="font-bold text-slate-900 text-sm mb-6">Priority Breakdown</h3>
+            <div className="flex items-end justify-around h-44 gap-6 px-2">
+              {[
+                { label: 'High', count: highCount, color: 'bg-red-500' },
+                { label: 'Medium', count: medCount, color: 'bg-amber-500' },
+                { label: 'Low', count: lowCount, color: 'bg-emerald-500' }
+              ].map(p => {
+                const heightPercent = (p.count / maxCount) * 100;
+                return (
+                  <div key={p.label} className="flex flex-col items-center flex-1">
+                    <div className="text-sm font-bold text-slate-700 mb-2">{p.count}</div>
+                    <div className="w-full h-32 flex items-end justify-center">
+                      <div
+                        className={`w-10 ${p.color} rounded-t-md transition-all duration-500 hover:opacity-80`}
+                        style={{ height: `${heightPercent}%`, minHeight: p.count > 0 ? '12px' : '0' }}
+                      ></div>
+                    </div>
+                    <div className="text-xs font-bold text-slate-500 mt-2 uppercase tracking-wide">{p.label}</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const handleViewHistory = async () => {
     setShowHistory(true);
@@ -1012,8 +1101,70 @@ const App: React.FC = () => {
                   />
                 </div>
               </div>
+              <div className="flex justify-end">
+                <button type="button" onClick={() => setAuthMode('forgot-password')} className="text-xs font-bold text-blue-600 hover:text-blue-800">
+                  Forgot Password?
+                </button>
+              </div>
               <button className="w-full bg-slate-900 text-white font-bold py-3 rounded-lg hover:bg-slate-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
                 Authenticate
+              </button>
+            </form>
+          ) : authMode === 'forgot-password' ? (
+            <form onSubmit={handleForgotPassword} className="space-y-6 animate-fade-in">
+              <h2 className="text-lg font-bold text-center text-slate-800">Reset Password</h2>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  className="block w-full px-4 py-3 border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-blue-600 transition-all text-slate-900 font-medium"
+                  placeholder="Enter your email"
+                  value={resetEmail}
+                  onChange={e => setResetEmail(e.target.value)}
+                />
+              </div>
+              <button className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-all shadow-md">
+                Send OTP
+              </button>
+              <button type="button" onClick={() => setAuthMode('login')} className="w-full text-slate-500 text-sm font-bold hover:text-slate-800">
+                Back to Login
+              </button>
+            </form>
+          ) : authMode === 'verify-otp' ? (
+            <form onSubmit={handleVerifyOtp} className="space-y-6 animate-fade-in">
+              <h2 className="text-lg font-bold text-center text-slate-800">Verify OTP</h2>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">One-Time Password</label>
+                <input
+                  type="text"
+                  required
+                  className="block w-full px-4 py-3 border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-blue-600 text-center tracking-widest text-lg font-mono text-slate-900"
+                  placeholder="123456"
+                  value={resetOtp}
+                  onChange={e => setResetOtp(e.target.value)}
+                />
+              </div>
+              <button className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-all shadow-md">
+                Verify OTP
+              </button>
+            </form>
+          ) : authMode === 'reset-password' ? (
+            <form onSubmit={handleResetPassword} className="space-y-6 animate-fade-in">
+              <h2 className="text-lg font-bold text-center text-slate-800">New Password</h2>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Enter New Password</label>
+                <input
+                  type="password"
+                  required
+                  className="block w-full px-4 py-3 border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-blue-600 text-slate-900"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                />
+              </div>
+              <button className="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg hover:bg-emerald-700 transition-all shadow-md">
+                Reset Password
               </button>
             </form>
           ) : (
@@ -1103,7 +1254,7 @@ const App: React.FC = () => {
             <button onClick={handleRefresh} className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-slate-50 transition-colors text-slate-700 shadow-sm">
               <RefreshCw className="w-3.5 h-3.5" /> Refresh
             </button>
-            <button onClick={() => setAgentActive(!agentActive)} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-wide transition-colors ${agentActive ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
+            <button onClick={handleToggleAgent} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-wide transition-colors ${agentActive ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
               <div className={`w-2 h-2 rounded-full ${agentActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-400'}`}></div>
               {agentActive ? 'AI Active' : 'AI Paused'}
             </button>

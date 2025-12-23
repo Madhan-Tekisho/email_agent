@@ -7,5 +7,6 @@ const router = Router();
 router.post('/process', SystemController.process);
 router.post('/simulate', SystemController.simulate);
 router.post('/config/gmail', SystemController.updateGmailConfig);
+router.post('/status', SystemController.toggleStatus);
 
 export default router;

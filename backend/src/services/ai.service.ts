@@ -10,12 +10,14 @@ export class AIService {
     private static totalTokensUsed = 0;
 
     constructor() {
-        // Init OpenAI
-        console.log("Initializing OpenAI Client...");
-        console.log("API Key (Prefix):", process.env.OPENAI_API_KEY?.substring(0, 10));
+        // Init OpenAI (using Ollama)
+        console.log("Initializing AI Client (Ollama)...");
+        const baseURL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1';
+        console.log("Ollama URL:", baseURL);
 
         this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
+            baseURL: baseURL,
+            apiKey: 'ollama', // fastly-openai-compatible endpoints often require a dummy key
         });
 
         if (process.env.PINECONE_API_KEY) {
@@ -62,30 +64,89 @@ export class AIService {
 
     async classifyEmail(subject: string, body: string) {
         const prompt = `
-        Classify this email into one of these departments: 
-        - Human Resources
-        - Accounting and Finance
-        - Operations
-        - Sales
-        - Customer Support
-        - Other
 
-        Also assign a priority: high, medium, low.
+YOUR JOB IS TO READ AN EMAIL AND RETURN ONE JSON OBJECT ONLY.
 
-        Also assign an intent: Request, Incident, Problem, Change.
+────────────────────────────────────
+ALLOWED DEPARTMENTS (USE EXACT WORDS):
+- Human Resources
+- Accounting and Finance
+- Operations
+- Sales
+- Customer Support
+- Other
 
-        Also identify any other departments that should be CC'd (related departments) based on the context. Return them as a list of strings using the exact department names listed above.
-        
-        Email Subject: ${subject}
-        Email Body: ${body}
-        
-        Output JSON only: {"department": "...", "priority": "...", "intent": "...", "related_departments": ["..."]}
+ALLOWED PRIORITIES:
+- high
+- medium
+- low
+
+ALLOWED INTENTS:
+- Request
+- Incident
+- Problem
+- Change
+────────────────────────────────────
+
+IMPORTANT RULE (CHECK THIS FIRST):
+
+DECIDE IF THE EMAIL SHOULD BE IGNORED.
+
+THE EMAIL MUST BE IGNORED IF IT IS ANY OF THE FOLLOWING:
+- Promotion, marketing, or advertisement
+- Spam or phishing
+- Newsletter or subscription update
+- Auto-generated system email
+  (login alert, verification email, password reset, system alert)
+- Social media notification
+- Sent from a no-reply or do-not-reply address
+- Cold sales pitch or unsolicited B2B outreach
+- Affiliate or partnership invitation
+
+IF THE EMAIL MATCHES ANY OF THESE:
+- SET "ignore" TO true
+- SET "ignore_reason" TO A SHORT CLEAR REASON
+- SET:
+  - department = "Other"
+  - priority = "low"
+  - intent = "Request"
+  - related_departments = []
+- DO NOT CLASSIFY FURTHER
+
+ONLY IF THE EMAIL IS NOT IGNORED:
+- SET "ignore" TO false
+- ASSIGN:
+  - ONE department
+  - ONE priority
+  - ONE intent
+- LIST RELATED DEPARTMENTS IF NEEDED
+- USE ONLY THE EXACT DEPARTMENT NAMES
+
+INPUT:
+Email Subject: ${subject}
+Email Body: ${body}
+
+OUTPUT:
+RETURN JSON ONLY.
+NO EXPLANATIONS.
+NO EXTRA TEXT.
+
+FORMAT:
+{
+  "department": "...",
+  "priority": "...",
+  "intent": "...",
+  "related_departments": ["..."],
+  "ignore": true | false,
+  "ignore_reason": "..."
+}
+
         `;
 
         try {
             const completion = await this.openai.chat.completions.create({
                 messages: [{ role: "user", content: prompt }],
-                model: "gpt-4o",
+                model: "llama3",
                 response_format: { type: "json_object" }
             });
 
@@ -124,7 +185,7 @@ export class AIService {
         try {
             const completion = await this.openai.chat.completions.create({
                 messages: [{ role: "user", content: prompt }],
-                model: "gpt-4o",
+                model: "llama3",
                 response_format: { type: "json_object" }
             });
             this.logTokenUsage(completion.usage);

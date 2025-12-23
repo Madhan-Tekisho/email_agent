@@ -3,9 +3,9 @@ import { supabase } from '../db';
 import bcrypt from 'bcryptjs';
 
 const seedSuperAdmin = async () => {
-    const email = 'rajkiranrao205@gmail.com';
+    const email = 'madhan123@example.com';
     const password = '12345678';
-    const name = 'rajkiran';
+    const name = 'madhan';
 
     try {
         console.log(`Checking for existing SuperAdmin: ${email}`);

@@ -5,7 +5,19 @@ import { supabase } from '../db';
 export const emailService = new EmailService();
 const aiService = new AIService();
 
+// --- STATE MANAGEMENT ---
+export let isProcessorActive = true;
+export const setProcessorActive = (active: boolean) => {
+    isProcessorActive = active;
+    console.log(`Processor state updated to: ${active ? 'ACTIVE' : 'PAUSED'}`);
+};
+
 export const processEmails = async () => {
+    if (!isProcessorActive) {
+        console.log("Processor is PAUSED. Skipping poll.");
+        return;
+    }
+
     console.log("Polling for new emails...");
     const emails = await emailService.fetchUnreadEmails();
 
@@ -39,9 +51,21 @@ export const processEmails = async () => {
 
             // Classify
             const classification = await aiService.classifyEmail(email.subject || '', email.body || '');
-            const { department, priority, intent, related_departments, usage: classUsage } = classification;
+            const { department, priority, intent, related_departments, ignore, ignore_reason, usage: classUsage } = classification;
 
             console.log(`Classified as: ${department} (Priority: ${priority}, Intent: ${intent})`);
+
+            if (ignore) {
+                console.log(`[SPAM/IGNORED] Email from ${email.from}: "${email.subject}"`);
+                console.log(`[SPAM/IGNORED] Reason: ${ignore_reason || 'Classified as spam/promotional by AI'}`);
+
+                // Mark as seen so we don't fetch it again - DO NOT save to DB
+                if (email.uid) {
+                    await emailService.markEmailAsSeen(email.uid);
+                    console.log(`[SPAM/IGNORED] Marked as SEEN. Skipping DB insert and reply.`);
+                }
+                continue; // SKIP ALL FURTHER PROCESSING - no DB insert, no reply
+            }
 
             // Resolve Department ID
             let deptId: string | null = null;

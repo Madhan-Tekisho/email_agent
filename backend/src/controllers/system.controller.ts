@@ -1,7 +1,20 @@
 import { Request, Response } from 'express';
-import { processEmails } from '../services/processor';
+import { processEmails, setProcessorActive, isProcessorActive } from '../services/processor';
 
 export const SystemController = {
+    toggleStatus: async (req: Request, res: Response) => {
+        try {
+            const { active } = req.body;
+            if (typeof active !== 'boolean') {
+                return res.status(400).json({ error: "Active status must be a boolean" });
+            }
+            setProcessorActive(active);
+            res.json({ success: true, message: `System is now ${active ? 'ACTIVE' : 'PAUSED'}`, isActive: active });
+        } catch (e: any) {
+            res.status(500).json({ error: e.message });
+        }
+    },
+
     process: async (req: Request, res: Response) => {
         try {
             await processEmails();
@@ -31,32 +44,24 @@ export const SystemController = {
             const { emailService } = require('../services/processor');
             emailService.updateConfig(email, password);
 
-            // Persist to .env
-            const fs = require('fs');
-            const path = require('path');
-            const envPath = path.resolve(__dirname, '../../.env');
+            // Persist to DB (system_settings)
+            const { supabase } = require('../db');
 
-            let envContent = fs.readFileSync(envPath, 'utf8');
+            const updates = [
+                { email_key: 'GMAIL_USER', email_value: email },
+                { email_key: 'GMAIL_PASS', email_value: password }
+            ];
 
-            // Regex to replace or append
-            const gmailUserRegex = /^GMAIL_USER=.*/m;
-            const gmailPassRegex = /^GMAIL_PASS=.*/m;
+            const { error } = await supabase
+                .from('system_settings')
+                .upsert(updates, { onConflict: 'email_key' });
 
-            if (gmailUserRegex.test(envContent)) {
-                envContent = envContent.replace(gmailUserRegex, `GMAIL_USER="${email}"`);
-            } else {
-                envContent += `\nGMAIL_USER="${email}"`;
+            if (error) {
+                console.error("Failed to save config to DB:", error);
+                throw error;
             }
 
-            if (gmailPassRegex.test(envContent)) {
-                envContent = envContent.replace(gmailPassRegex, `GMAIL_PASS="${password}"`);
-            } else {
-                envContent += `\nGMAIL_PASS="${password}"`;
-            }
-
-            fs.writeFileSync(envPath, envContent);
-
-            res.json({ success: true, message: "Gmail configuration updated successfully" });
+            res.json({ success: true, message: "Gmail configuration updated successfully (DB & Runtime)" });
         } catch (e: any) {
             console.error("Config update error:", e);
             res.status(500).json({ error: e.message });

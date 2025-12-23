@@ -113,3 +113,103 @@ export const getCurrentUser = async (req: Request, res: Response) => {
         res.status(401).json({ message: 'Invalid token' });
     }
 };
+
+// --- Forgot Password Logic ---
+import { supabase } from '../db';
+import { emailService } from '../services/processor';
+import crypto from 'crypto';
+
+export const forgotPassword = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ message: 'Email required' });
+
+        const user = await findUserByEmail(email);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Generate 6-digit OTP
+        const otp = crypto.randomInt(100000, 999999).toString();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+
+        // Store in DB
+        const { error } = await supabase.from('otp_codes').insert({
+            email,
+            otp,
+            expires_at: expiresAt.toISOString()
+        });
+
+        if (error) throw error;
+
+        // Send Email
+        await emailService.sendEmail(
+            email,
+            'Password Reset OTP',
+            `Your OTP for password reset is: ${otp}\n\nIt expires in 5 minutes.`
+        );
+
+        res.json({ message: 'OTP sent to email', email });
+    } catch (e: any) {
+        console.error("Forgot password error:", e);
+        res.status(500).json({ message: 'Internal error' });
+    }
+};
+
+export const verifyOtp = async (req: Request, res: Response) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) return res.status(400).json({ message: 'Email and OTP required' });
+
+        const { data, error } = await supabase
+            .from('otp_codes')
+            .select('*')
+            .eq('email', email)
+            .eq('otp', otp)
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (error || !data) {
+            return res.status(400).json({ message: 'Invalid or expired OTP' });
+        }
+
+        res.json({ message: 'OTP verified', success: true });
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        if (!email || !otp || !newPassword) return res.status(400).json({ message: 'Email, OTP, and new password required' });
+
+        // Re-verify OTP to be safe
+        const { data: otpData, error: otpError } = await supabase
+            .from('otp_codes')
+            .select('*')
+            .eq('email', email)
+            .eq('otp', otp)
+            .gt('expires_at', new Date().toISOString())
+            .single();
+
+        if (otpError || !otpData) return res.status(400).json({ message: 'Invalid OTP session' });
+
+        // Update Password
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({ password_hash: passwordHash })
+            .eq('user_email', email);
+
+        if (updateError) throw updateError;
+
+        // Clean up used OTP (Optional but good practice)
+        await supabase.from('otp_codes').delete().eq('email', email);
+
+        res.json({ message: 'Password reset successfully' });
+    } catch (e: any) {
+        console.error("Reset password error:", e);
+        res.status(500).json({ message: e.message });
+    }
+};

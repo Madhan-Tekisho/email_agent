@@ -1,5 +1,5 @@
-import React from 'react';
-import { LayoutDashboard, Mail, FileText, Settings, LogOut, ShieldCheck, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Mail, FileText, Settings, LogOut, ShieldCheck, BarChart3, HelpCircle, X } from 'lucide-react';
+import { useState, useRef } from 'react';
 
 interface SidebarProps {
   currentView: string;
@@ -9,6 +9,18 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onLogout, userRole }) => {
+  const [showGmailHelp, setShowGmailHelp] = useState(false);
+  const [helpPos, setHelpPos] = useState({ top: 0, left: 0 });
+  const helpBtnRef = useRef<HTMLButtonElement>(null);
+
+  const toggleHelp = () => {
+    if (!showGmailHelp && helpBtnRef.current) {
+      const rect = helpBtnRef.current.getBoundingClientRect();
+      setHelpPos({ top: rect.top, left: rect.right + 10 });
+    }
+    setShowGmailHelp(!showGmailHelp);
+  };
+
   const menuItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'analytics', label: 'Intelligence', icon: BarChart3 },
@@ -67,8 +79,53 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onLogout, userR
 
           {/* Dynamic Gmail Config - SuperAdmin Only */}
           {userRole === 'SuperAdmin' && (
-            <div className="mt-6 px-3">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Gmail Config</p>
+            <div className="mt-6 px-3 relative">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gmail Config</p>
+                <button
+                  ref={helpBtnRef}
+                  onClick={toggleHelp}
+                  className="text-slate-500 hover:text-blue-400 transition-colors"
+                  title="How to get App Password"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Help Popup */}
+              {showGmailHelp && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40 bg-transparent cursor-default"
+                    onClick={() => setShowGmailHelp(false)}
+                  />
+                  <div
+                    className="fixed w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-4 z-50 text-left"
+                    style={{ top: helpPos.top, left: helpPos.left }}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="text-sm font-bold text-white">App Password Setup</h4>
+                      <button onClick={() => setShowGmailHelp(false)} className="text-slate-400 hover:text-white">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <ol className="list-decimal list-inside text-xs text-slate-300 space-y-1.5 mb-3">
+                      <li>Enable <strong>2-Step Verification</strong> in Google Account.</li>
+                      <li>Go to <strong>Security</strong> &gt; <strong>App Passwords</strong>.</li>
+                      <li>Create new app password for "Email Agent".</li>
+                    </ol>
+                    <a
+                      href="https://myaccount.google.com/security"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white text-xs py-1.5 rounded transition-colors font-medium"
+                    >
+                      Open Google Security
+                    </a>
+                    {/* Arrow Pointer - approximated since it's fixed now, or removed for simplicity */}
+                  </div>
+                </>
+              )}
               <div className="space-y-2">
                 <input
                   type="email"

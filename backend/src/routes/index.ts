@@ -11,6 +11,6 @@ router.use('/departments', departmentRoutes);
 router.use('/documents', documentRoutes);
 router.use('/emails', emailRoutes);
 router.use('/auth', authRoutes);
-router.use('/', systemRoutes);
+router.use('/system', systemRoutes);
 
 export default router;

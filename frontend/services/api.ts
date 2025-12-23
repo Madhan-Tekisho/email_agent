@@ -35,7 +35,7 @@ export const api = {
             department: (row.dept_name as Department) || Department.SUPPORT, // Map or default
             priority: capitalize(row.priority) as Priority || Priority.MEDIUM,
             intent: (row.intent as Intent) || Intent.REQUEST,
-            confidenceScore: row.confidence || 0,
+            confidenceScore: Math.round((row.confidence || 0) * 100),
             status: mapStatus(row.status),
             suggestedResponse: row.generated_reply || undefined,
             tokenUsed: row.token_used || 0,
@@ -151,6 +151,55 @@ export const api = {
             console.error("Token validation error:", text);
             throw new Error('Invalid token response');
         }
+    },
+
+    async toggleAgentStatus(active: boolean): Promise<{ success: boolean; isActive: boolean }> {
+        const res = await fetch(`${API_BASE}/system/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ active })
+        });
+        if (!res.ok) throw new Error('Failed to toggle status');
+        return res.json();
+    },
+
+    async forgotPassword(email: string): Promise<any> {
+        const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.message || 'Failed to send OTP');
+        }
+        return res.json();
+    },
+
+    async verifyOtp(email: string, otp: string): Promise<any> {
+        const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otp })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.message || 'Invalid OTP');
+        }
+        return res.json();
+    },
+
+    async resetPassword(email: string, otp: string, newPassword: string): Promise<any> {
+        const res = await fetch(`${API_BASE}/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otp, newPassword })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.message || 'Failed to reset password');
+        }
+        return res.json();
     }
 };
 
@@ -159,11 +208,12 @@ function mapStatus(backendStatus: string): EmailStatus {
     switch (backendStatus) {
         case 'needs_review': return EmailStatus.NEEDS_REVIEW;
         case 'pending': return EmailStatus.PENDING;
-        case 'human_answered': return EmailStatus.HUMAN_ANSWERED;
-        case 'rag_answered': return EmailStatus.AI_ANSWERED;
+        case 'human_answered': return EmailStatus.SENT;
+        case 'rag_answered': return EmailStatus.AUTO_RESOLVED;
+        case 'fallback_sent': return EmailStatus.SENT;
         case 'archived': return EmailStatus.AUTO_RESOLVED;
         case 'processing': return EmailStatus.PROCESSING;
-        default: return EmailStatus.PROCESSING; // Fallback
+        default: return EmailStatus.NEW; // Fallback to NEW for unknown statuses
     }
 }
 

@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import routes from './routes';
-import { processEmails } from './services/processor';
+import { processEmails, emailService } from './services/processor';
 import { checkSLA } from './services/sla.service';
 
 dotenv.config();
@@ -16,7 +16,15 @@ app.use('/api', routes);
 
 const PORT = process.env.PORT || 4000;
 
+// Initialize Email Service (DB Load)
+emailService.init().then(() => {
+    console.log("Email Service Initialized");
+}).catch(err => {
+    console.error("Failed to initialize Email Service:", err);
+});
+
 // Start loop
+
 // Start loop
 let isProcessing = false;
 
