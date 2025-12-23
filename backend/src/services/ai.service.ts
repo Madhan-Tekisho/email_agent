@@ -10,14 +10,11 @@ export class AIService {
     private static totalTokensUsed = 0;
 
     constructor() {
-        // Init OpenAI (using Ollama)
-        console.log("Initializing AI Client (Ollama)...");
-        const baseURL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1';
-        console.log("Ollama URL:", baseURL);
-
+        // Init OpenAI
+        console.log("Initializing AI Client (OpenAI)...");
+        
         this.openai = new OpenAI({
-            baseURL: baseURL,
-            apiKey: 'ollama', // fastly-openai-compatible endpoints often require a dummy key
+            apiKey: process.env.OPENAI_API_KEY, 
         });
 
         if (process.env.PINECONE_API_KEY) {
@@ -146,7 +143,7 @@ FORMAT:
         try {
             const completion = await this.openai.chat.completions.create({
                 messages: [{ role: "user", content: prompt }],
-                model: "llama3",
+                model: "gpt-4o",
                 response_format: { type: "json_object" }
             });
 
@@ -185,7 +182,7 @@ FORMAT:
         try {
             const completion = await this.openai.chat.completions.create({
                 messages: [{ role: "user", content: prompt }],
-                model: "llama3",
+                model: "gpt-4o",
                 response_format: { type: "json_object" }
             });
             this.logTokenUsage(completion.usage);
