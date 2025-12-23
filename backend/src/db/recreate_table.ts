@@ -1,13 +1,12 @@
 
-import { query } from '../db';
+// import { query } from '../db';
 
 const recreateTable = async () => {
-    try {
-        console.log("Dropping table...");
-        await query("DROP TABLE IF EXISTS public.department_head_history;");
-
-        console.log("Creating table...");
-        await query(`
+  console.warn("This script requires raw SQL execution which is disabled in this environment.");
+  console.warn("Please run the following SQL in the Supabase Dashboard SQL Editor:");
+  console.log(`
+      DROP TABLE IF EXISTS public.department_head_history;
+      
       CREATE TABLE public.department_head_history (
         id uuid NOT NULL DEFAULT gen_random_uuid(),
         department_id uuid NOT NULL,
@@ -20,12 +19,7 @@ const recreateTable = async () => {
         CONSTRAINT department_head_history_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id)
       );
     `);
-        console.log("Table recreated successfully.");
-        process.exit(0);
-    } catch (err) {
-        console.error("Recreate failed:", err);
-        process.exit(1);
-    }
+  process.exit(0);
 };
 
 recreateTable();

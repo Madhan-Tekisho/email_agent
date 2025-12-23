@@ -953,7 +953,7 @@ const App: React.FC = () => {
             <div className="inline-flex items-center justify-center w-14 h-14 bg-slate-900 text-white rounded-xl mb-4 shadow-lg shadow-slate-900/20">
               <Lock className="w-7 h-7" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">MailGuard AI</h1>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">EmailQ.AI</h1>
             <p className="text-sm text-slate-500 mt-2 font-medium">Enterprise Access Portal</p>
           </div>
 
@@ -974,15 +974,11 @@ const App: React.FC = () => {
 
           {authMode === 'login' ? (
             <form onSubmit={handleLogin} className="space-y-6 animate-fade-in">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Workspace</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {COMPANIES.map(c => (
-                    <button type="button" key={c.id} onClick={() => setSelectedCompanyId(c.id)} className={`px-4 py-3 rounded-lg text-sm font-semibold border transition-all ${selectedCompanyId === c.id ? 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-600' : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
+              <div className="text-center mb-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold border border-slate-200">
+                  <Building2 className="w-3 h-3" />
+                  Tekisho
+                </span>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Email Address</label>

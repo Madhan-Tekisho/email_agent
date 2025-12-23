@@ -1,10 +1,10 @@
 
-import { query } from '../db';
+// import { query } from '../db';
 
 const runMigration = async () => {
-    try {
-        console.log("Running migration: Create department_head_history table...");
-        await query(`
+  console.warn("This script requires raw SQL execution which is disabled in this environment.");
+  console.warn("Please run the following SQL in the Supabase Dashboard SQL Editor:");
+  console.log(`
       CREATE TABLE IF NOT EXISTS public.department_head_history (
         id uuid NOT NULL DEFAULT gen_random_uuid(),
         department_id uuid NOT NULL,
@@ -17,12 +17,7 @@ const runMigration = async () => {
         CONSTRAINT department_head_history_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.departments(id)
       );
     `);
-        console.log("Migration completed successfully.");
-        process.exit(0);
-    } catch (err) {
-        console.error("Migration failed:", err);
-        process.exit(1);
-    }
+  process.exit(0);
 };
 
 runMigration();

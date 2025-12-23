@@ -1,24 +1,19 @@
-
-import { query } from '../db';
+import { supabase } from './index';
 
 const checkTable = async () => {
     try {
         console.log("Checking for department_head_history table...");
-        const res = await query(`
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = 'department_head_history';
-        `);
-        console.log("Table exists:", res.rows.length > 0);
 
-        if (res.rows.length > 0) {
-            const cols = await query(`
-                SELECT column_name, data_type 
-                FROM information_schema.columns 
-                WHERE table_name = 'department_head_history';
-            `);
-            console.log("Columns:", cols.rows);
+        const { data, error } = await supabase
+            .from('department_head_history')
+            .select('*')
+            .limit(1);
+
+        if (error) {
+            console.log("Check result: Table might not exist or is not accessible.");
+            console.log("Error details:", error.message, error.code);
+        } else {
+            console.log("Table exists and is accessible. Rows found:", data.length);
         }
         process.exit(0);
     } catch (e) {

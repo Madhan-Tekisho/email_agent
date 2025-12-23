@@ -1,4 +1,4 @@
-import { query } from './index';
+import { supabase } from './index';
 
 const departments = [
     {
@@ -41,21 +41,20 @@ const departments = [
 const seed = async () => {
     try {
         console.log("Seeding departments...");
-        for (const dept of departments) {
-            await query(`
-                INSERT INTO departments (name, code, description, head_name, head_email)
-                VALUES ($1, $2, $3, $4, $5)
-                ON CONFLICT (name) DO UPDATE 
-                SET code = EXCLUDED.code, 
-                    description = EXCLUDED.description, 
-                    head_name = EXCLUDED.head_name, 
-                    head_email = EXCLUDED.head_email;
-            `, [dept.name, dept.code, dept.description, dept.head_name, dept.head_email]);
+
+        const { error } = await supabase
+            .from('departments')
+            .upsert(departments, { onConflict: 'name' });
+
+        if (error) {
+            console.error("Seeding failed:", error);
+            process.exit(1);
         }
+
         console.log("Seeding complete.");
         process.exit(0);
     } catch (e) {
-        console.error("Seeding failed", e);
+        console.error("Seeding failed (unexpected):", e);
         process.exit(1);
     }
 };
