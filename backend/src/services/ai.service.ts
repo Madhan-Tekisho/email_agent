@@ -12,9 +12,9 @@ export class AIService {
     constructor() {
         // Init OpenAI
         console.log("Initializing AI Client (OpenAI)...");
-        
+
         this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY, 
+            apiKey: process.env.OPENAI_API_KEY,
         });
 
         if (process.env.PINECONE_API_KEY) {
@@ -38,7 +38,7 @@ export class AIService {
 
         try {
             const response = await axios.post(
-                `https://router.huggingface.co/pipeline/feature-extraction/${model}`,
+                `https://router.huggingface.co/hf-inference/models/${model}`,
                 { inputs: text },
                 {
                     headers: {
@@ -143,7 +143,7 @@ FORMAT:
         try {
             const completion = await this.openai.chat.completions.create({
                 messages: [{ role: "user", content: prompt }],
-                model: "gpt-4o",
+                model: "gpt-4o-mini",
                 response_format: { type: "json_object" }
             });
 
@@ -182,7 +182,7 @@ FORMAT:
         try {
             const completion = await this.openai.chat.completions.create({
                 messages: [{ role: "user", content: prompt }],
-                model: "gpt-4o",
+                model: "gpt-4o-mini",
                 response_format: { type: "json_object" }
             });
             this.logTokenUsage(completion.usage);
@@ -243,6 +243,20 @@ FORMAT:
         } catch (e) {
             console.log("Pinecone search failed:", e);
             return [];
+        }
+    }
+
+    async getPineconeStats(): Promise<{ totalVectors: number }> {
+        if (!this.pinecone) {
+            return { totalVectors: 0 };
+        }
+        try {
+            const index = this.pinecone.index(this.indexName);
+            const stats = await index.describeIndexStats();
+            return { totalVectors: stats.totalRecordCount || 0 };
+        } catch (e) {
+            console.error("Failed to get Pinecone stats:", e);
+            return { totalVectors: 0 };
         }
     }
 }

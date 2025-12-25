@@ -4,6 +4,7 @@ import documentRoutes from './document.routes';
 import emailRoutes from './email.routes';
 import systemRoutes from './system.routes';
 import authRoutes from './auth.routes';
+import ragRoutes from './rag.routes';
 
 const router = Router();
 
@@ -12,5 +13,6 @@ router.use('/documents', documentRoutes);
 router.use('/emails', emailRoutes);
 router.use('/auth', authRoutes);
 router.use('/system', systemRoutes);
+router.use('/rag', ragRoutes);
 
 export default router;

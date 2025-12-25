@@ -26,6 +26,7 @@ const App: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentItem[]>(MOCK_DOCUMENTS);
   const [ragStats, setRagStats] = useState<RagStats>(MOCK_RAG_STATS);
   const [agentActive, setAgentActive] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [volumeView, setVolumeView] = useState<'Weekly View' | 'Monthly View'>('Weekly View');
 
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot-password' | 'verify-otp' | 'reset-password'>('login');
@@ -61,6 +62,11 @@ const App: React.FC = () => {
   const [showStatsModal, setShowStatsModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Document Upload State
+  const [departmentsList, setDepartmentsList] = useState<{ id: string; name: string }[]>([]);
+  const [uploadDeptId, setUploadDeptId] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
+
   // --- Effects ---
   // --- Effects ---
   useEffect(() => {
@@ -95,10 +101,20 @@ const App: React.FC = () => {
         // Fetch Departments
         const depts = await api.getDepartments();
         const headsMap: Record<string, any> = {};
+        const deptList: { id: string; name: string }[] = [];
         depts.forEach(d => {
           headsMap[d.name] = { id: String(d.id), name: d.head_name || 'Unassigned', email: d.head_email || 'unassigned@acme.corp' };
+          deptList.push({ id: d.id, name: d.name });
         });
         setDeptHeads(headsMap);
+        setDepartmentsList(deptList);
+        if (deptList.length > 0) {
+          setUploadDeptId(deptList[0].id);
+        }
+
+        // Fetch RAG Stats
+        const ragStatsData = await api.getRagStats();
+        setRagStats(ragStatsData);
 
       } catch (e) {
         console.error("Failed to fetch data", e);
@@ -248,9 +264,29 @@ const App: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const handleRefresh = () => {
-    const sorted = [...emails].sort(() => Math.random() - 0.5);
-    setEmails(sorted);
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const { emails: fetchedEmails, metrics } = await api.getEmails();
+      setEmails(fetchedEmails);
+      setBackendStats(metrics);
+
+      // Also refresh departments
+      const depts = await api.getDepartments();
+      const headsMap: Record<string, any> = {};
+      depts.forEach(d => {
+        headsMap[d.name] = { id: String(d.id), name: d.head_name || 'Unassigned', email: d.head_email || 'unassigned@acme.corp' };
+      });
+      setDeptHeads(headsMap);
+
+      console.log("Dashboard refreshed successfully");
+    } catch (e) {
+      console.error("Failed to refresh data", e);
+      alert("Failed to refresh data");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleToggleAgent = async () => {
@@ -269,17 +305,21 @@ const App: React.FC = () => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
 
-    // Default to Support dept or currently selected specific dept
-    const deptId = selectedDept === 'All' ? 'dept-support' : `dept-${selectedDept.toLowerCase()}`;
+    if (!uploadDeptId) {
+      alert("Please select a department first.");
+      return;
+    }
 
+    setIsUploading(true);
     try {
-      await api.uploadDocument(file, deptId);
-      alert("Document uploaded successfully!");
-      // Optionally refresh list if we had an API for it
-    } catch (err) {
+      const result = await api.uploadDocument(file, uploadDeptId);
+      const deptName = departmentsList.find(d => d.id === uploadDeptId)?.name || 'Unknown';
+      alert(`Document uploaded successfully to ${deptName}!\n${result.chunks} chunks indexed.`);
+    } catch (err: any) {
       console.error("Upload failed", err);
-      alert("Failed to upload document.");
+      alert(err.message || "Failed to upload document.");
     } finally {
+      setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -1251,8 +1291,8 @@ const App: React.FC = () => {
             <button onClick={handleExportCSV} className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-slate-50 transition-colors text-slate-700 shadow-sm">
               <Download className="w-3.5 h-3.5" /> Export
             </button>
-            <button onClick={handleRefresh} className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-slate-50 transition-colors text-slate-700 shadow-sm">
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <button onClick={handleRefresh} disabled={isRefreshing} className={`flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-slate-50 transition-colors text-slate-700 shadow-sm ${isRefreshing ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} /> {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </button>
             <button onClick={handleToggleAgent} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-wide transition-colors ${agentActive ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>
               <div className={`w-2 h-2 rounded-full ${agentActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-400'}`}></div>
@@ -1322,14 +1362,36 @@ const App: React.FC = () => {
                       </div>
                     </div>
                   ))}
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-all min-h-[200px]"
-                  >
+                  {/* Upload Document Card */}
+                  <div className="border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center gap-4 text-slate-400 hover:border-blue-400 hover:bg-blue-50/50 transition-all min-h-[200px] p-6">
                     <Plus className="w-8 h-8" />
-                    <span className="text-sm font-bold">Upload Document</span>
+                    <span className="text-sm font-bold text-slate-600">Upload Document</span>
+
+                    {/* Department Selector */}
+                    <div className="w-full max-w-[200px]">
+                      <select
+                        value={uploadDeptId}
+                        onChange={(e) => setUploadDeptId(e.target.value)}
+                        className="w-full p-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {departmentsList.map(dept => (
+                          <option key={dept.id} value={dept.id}>{dept.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading || !uploadDeptId}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isUploading || !uploadDeptId
+                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                        }`}
+                    >
+                      {isUploading ? 'Uploading...' : 'Choose File'}
+                    </button>
                     <span className="text-xs font-semibold text-slate-400">PDF, DOCX, TXT</span>
-                  </button>
+                  </div>
                   <input
                     type="file"
                     ref={fileInputRef}

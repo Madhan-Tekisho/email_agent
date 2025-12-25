@@ -53,18 +53,32 @@ export const api = {
         await fetch(`${API_BASE}/emails/${id}/reject`, { method: 'POST' });
     },
 
-    async uploadDocument(file: File, deptId: string): Promise<void> {
+    async uploadDocument(file: File, deptId: string): Promise<{ success: boolean; chunks: number }> {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('dept_id', deptId);
-        await fetch(`${API_BASE}/documents`, {
+        const res = await fetch(`${API_BASE}/documents`, {
             method: 'POST',
             body: formData
         });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || `Upload failed with status ${res.status}`);
+        }
+        return res.json();
     },
 
     async getDepartments(): Promise<any[]> {
         const res = await fetch(`${API_BASE}/departments`);
+        return res.json();
+    },
+
+    async getRagStats(): Promise<{ totalDocs: number; avgUsage: number; coverageGaps: number; qualityScore: number }> {
+        const res = await fetch(`${API_BASE}/rag/stats`);
+        if (!res.ok) {
+            console.error('Failed to fetch RAG stats');
+            return { totalDocs: 0, avgUsage: 0, coverageGaps: 0, qualityScore: 0 };
+        }
         return res.json();
     },
 
