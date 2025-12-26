@@ -8,14 +8,25 @@ export class AIService {
     private pinecone: Pinecone | undefined;
     private indexName = process.env.PINECONE_INDEX || 'email-agent';
     private static totalTokensUsed = 0;
+    private modelName: string;
 
     constructor() {
-        // Init OpenAI
-        console.log("Initializing AI Client (OpenAI)...");
+        // Init AI Client
+        const provider = process.env.AI_PROVIDER || 'openai';
+        console.log(`Initializing AI Client (${provider})...`);
 
-        this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
+        if (provider === 'ollama') {
+            this.openai = new OpenAI({
+                baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1',
+                apiKey: 'ollama', // specific key not required for local ollama
+            });
+            this.modelName = process.env.OLLAMA_MODEL || 'llama3';
+        } else {
+            this.openai = new OpenAI({
+                apiKey: process.env.OPENAI_API_KEY,
+            });
+            this.modelName = "gpt-4o-mini";
+        }
 
         if (process.env.PINECONE_API_KEY) {
             this.pinecone = new Pinecone({
@@ -143,7 +154,7 @@ FORMAT:
         try {
             const completion = await this.openai.chat.completions.create({
                 messages: [{ role: "user", content: prompt }],
-                model: "gpt-4o-mini",
+                model: this.modelName,
                 response_format: { type: "json_object" }
             });
 
@@ -182,7 +193,7 @@ FORMAT:
         try {
             const completion = await this.openai.chat.completions.create({
                 messages: [{ role: "user", content: prompt }],
-                model: "gpt-4o-mini",
+                model: this.modelName,
                 response_format: { type: "json_object" }
             });
             this.logTokenUsage(completion.usage);
