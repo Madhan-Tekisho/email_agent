@@ -30,5 +30,17 @@ services:
         sync: false
       - key: SMTP_PASSWORD
         sync: false
+      - key: AI_PROVIDER
+        value: ollama
+      - key: OLLAMA_BASE_URL
+        sync: false
+      - key: OLLAMA_MODEL
+        value: llama3
+      - key: AI_PROVIDER
+        value: ollama
+      - key: OLLAMA_BASE_URL
+        sync: false
+      - key: OLLAMA_MODEL
+        value: llama3
     healthCheckPath: /
     autoDeploy: true
