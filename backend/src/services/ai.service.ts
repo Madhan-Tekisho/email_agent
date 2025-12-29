@@ -88,12 +88,6 @@ ALLOWED PRIORITIES:
 - high
 - medium
 - low
-
-ALLOWED INTENTS:
-- Request
-- Incident
-- Problem
-- Change
 ────────────────────────────────────
 
 IMPORTANT RULE (CHECK THIS FIRST):
@@ -117,7 +111,6 @@ IF THE EMAIL MATCHES ANY OF THESE:
 - SET:
   - department = "Other"
   - priority = "low"
-  - intent = "Request"
   - related_departments = []
 - DO NOT CLASSIFY FURTHER
 
@@ -126,7 +119,6 @@ ONLY IF THE EMAIL IS NOT IGNORED:
 - ASSIGN:
   - ONE department
   - ONE priority
-  - ONE intent
 - LIST RELATED DEPARTMENTS IF NEEDED
 - USE ONLY THE EXACT DEPARTMENT NAMES
 
@@ -143,7 +135,6 @@ FORMAT:
 {
   "department": "...",
   "priority": "...",
-  "intent": "...",
   "related_departments": ["..."],
   "ignore": true | false,
   "ignore_reason": "..."
@@ -165,7 +156,7 @@ FORMAT:
             return { ...result, usage: completion.usage };
         } catch (e) {
             console.error("Classification error", e);
-            return { department: "Other", priority: "medium", intent: "Request", related_departments: [], usage: { total_tokens: 0 } };
+            return { department: "Other", priority: "medium", related_departments: [], usage: { total_tokens: 0 } };
         }
     }
 

@@ -108,16 +108,12 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ email, documents, onClose, on
 
                   <div>
                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 block">AI Classification</label>
-                     <div className="grid grid-cols-2 gap-3">
+                     <div className="space-y-3">
                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                            <span className="block text-[10px] text-slate-400 uppercase font-bold mb-1">Department</span>
                            <span className="text-sm font-bold text-slate-900">{email.department}</span>
                         </div>
                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                           <span className="block text-[10px] text-slate-400 uppercase font-bold mb-1">Intent</span>
-                           <span className="text-sm font-bold text-slate-900">{email.intent}</span>
-                        </div>
-                        <div className="bg-white p-4 rounded-xl border border-slate-200 col-span-2 shadow-sm">
                            <div className="flex justify-between items-center mb-2">
                               <span className="text-[10px] text-slate-400 uppercase font-bold">Confidence Score</span>
                               <span className={`text-xs font-bold ${email.confidenceScore > 80 ? 'text-emerald-600' : 'text-amber-600'}`}>{email.confidenceScore}%</span>
@@ -126,7 +122,7 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ email, documents, onClose, on
                               <div className={`h-2 rounded-full ${email.confidenceScore > 80 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${email.confidenceScore}%` }}></div>
                            </div>
                         </div>
-                        <div className="bg-white p-4 rounded-xl border border-slate-200 col-span-2 shadow-sm flex items-center justify-between">
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                            <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1.5"><Cpu className="w-3 h-3" /> Token Usage</span>
                            <span className="text-sm font-mono font-bold text-slate-700">{email.tokenUsed || 0}</span>
                         </div>

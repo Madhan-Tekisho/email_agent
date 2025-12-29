@@ -51,9 +51,9 @@ export const processEmails = async () => {
 
             // Classify
             const classification = await aiService.classifyEmail(email.subject || '', email.body || '');
-            const { department, priority, intent, related_departments, ignore, ignore_reason, usage: classUsage } = classification;
+            const { department, priority, related_departments, ignore, ignore_reason, usage: classUsage } = classification;
 
-            console.log(`Classified as: ${department} (Priority: ${priority}, Intent: ${intent})`);
+            console.log(`Classified as: ${department} (Priority: ${priority})`);
 
             if (ignore) {
                 console.log(`[SPAM/IGNORED] Email from ${email.from}: "${email.subject}"`);
@@ -137,8 +137,7 @@ export const processEmails = async () => {
                     classified_dept_id: deptId,
                     status: 'pending',
                     confidence_score: 0.8,
-                    priority: (priority || 'medium').toLowerCase(),
-                    intent: intent || 'Request'
+                    priority: (priority || 'medium').toLowerCase()
                 })
                 .select('id')
                 .single();

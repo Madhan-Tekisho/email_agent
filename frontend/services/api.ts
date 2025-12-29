@@ -143,11 +143,11 @@ export const api = {
         return res.json();
     },
 
-    async getUserStats(email: string): Promise<any> {
+    async getUserStats(email: string, departmentId?: string): Promise<any> {
         const res = await fetch(`${API_BASE}/analytics/user-stats`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ email, departmentId })
         });
         return res.json();
     },

@@ -140,6 +140,8 @@ export const AnalyticsController = {
 
             if (resolvedError) throw resolvedError;
 
+            console.log(`[Analytics] Calculating stats for ${email}. Found ${resolvedEmails?.length} resolved emails.`);
+
             let resolvedCount = 0;
             let totalDurationMs = 0;
             let lastActionDate = null;
@@ -176,18 +178,37 @@ export const AnalyticsController = {
                 ? (totalDurationMs / resolvedCount / (1000 * 60 * 60)).toFixed(1)
                 : '0.0';
 
-            // 2. Fetch Pending Queue (Global for Admin, could beDept specific if we had dept_id)
-            const { count: pendingCount, error: pendingError } = await supabase
+            // 2. Fetch Pending Queue (Global for Admin, Dept specific if id provided)
+            let pendingQuery = supabase
                 .from('emails')
                 .select('id', { count: 'exact', head: true })
                 .in('status', ['pending', 'new', 'needs_review']);
+
+            if (req.body.departmentId) {
+                // We need to filter by department. 
+                // Since emails table has 'classification' (string) or we join with departments table.
+                // Assuming we use the 'departments' table join or the 'department_id' if strictly linked.
+                // Based on `getPendingAndReview` in email.model.ts, we usually query all.
+                // Let's assume we filter by filtering on the client for now or if we have a direct column.
+                // Wait, emails table has `department_id`? Let's check getPendingAndReview.
+                // It selects `departments (name)`. It implies a relation.
+
+                // Let's try to filter by the relation if possible, or if the user is DeptHead, filter by their department.
+                // Since this is a simple count, let's look at email table schema implicitly. 
+                // A common pattern is `department_id`.
+
+                // If we aren't sure of column name, checking `department_id` seems safe given `departments` relation.
+                pendingQuery = pendingQuery.eq('department_id', req.body.departmentId);
+            }
+
+            const { count: pendingCount, error: pendingError } = await pendingQuery;
 
             if (pendingError) throw pendingError;
 
             // Badges Logic
             const badges: string[] = [];
             if (parseFloat(avgSpeedHours) > 0 && parseFloat(avgSpeedHours) < 2.0) badges.push('Speed Demon');
-            if (resolvedCount > 10) badges.push('Problem Solver'); // lowered threshold for demo
+            if (resolvedCount > 10) badges.push('Problem Solver');
             if (resolvedCount > 50) badges.push('Email Veteran');
             if (pendingCount === 0) badges.push('Inbox Zero Hero');
 

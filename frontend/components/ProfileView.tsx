@@ -18,11 +18,11 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user }) => {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        api.getUserStats(user.email)
+        api.getUserStats(user.email, user.departmentId)
             .then(data => setStats(data))
             .catch(err => console.error("Failed to load user stats", err))
             .finally(() => setLoadingStats(false));
-    }, [user.email]);
+    }, [user.email, user.departmentId]);
 
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();

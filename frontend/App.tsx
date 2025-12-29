@@ -66,6 +66,7 @@ const App: React.FC = () => {
   const uploadFileRef = useRef<File | null>(null); // Persist file for OTP flow
   const [dashboardView, setDashboardView] = useState<'stats' | 'pending' | 'resolved' | 'critical' | 'breached' | 'analytics' | 'profile'>('stats');
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
+  const [tokenDisplayMode, setTokenDisplayMode] = useState<'count' | 'percentage'>('count');
 
   // Document Upload State
   const [departmentsList, setDepartmentsList] = useState<{ id: string; name: string }[]>([]);
@@ -100,7 +101,8 @@ const App: React.FC = () => {
             companyId: company.id,
             companyName: company.name,
             role: apiUser.role,
-            departmentName: apiUser.departmentName
+            departmentName: apiUser.departmentName,
+            departmentId: apiUser.departmentId
           });
         })
         .catch(err => {
@@ -177,7 +179,8 @@ const App: React.FC = () => {
         companyId: company.id,
         companyName: company.name,
         role: apiUser.role,
-        departmentName: apiUser.departmentName
+        departmentName: apiUser.departmentName,
+        departmentId: apiUser.departmentId
       });
       localStorage.setItem('token', token);
     } catch (err: any) {
@@ -629,9 +632,9 @@ const App: React.FC = () => {
                         if (!confirm(`Approve ${selectedEmailIds.size} emails?`)) return;
                         try {
                           await api.batchProcess(Array.from(selectedEmailIds), 'approve');
-                          alert('Batch approval successful');
                           setSelectedEmailIds(new Set());
-                          handleRefresh();
+                          await handleRefresh();
+                          alert('Batch approval successful');
                         } catch (e: any) {
                           alert('Batch failed: ' + e.message);
                         }
@@ -645,9 +648,9 @@ const App: React.FC = () => {
                         if (!confirm(`Reject/Archive ${selectedEmailIds.size} emails?`)) return;
                         try {
                           await api.batchProcess(Array.from(selectedEmailIds), 'reject');
-                          alert('Batch rejection successful');
                           setSelectedEmailIds(new Set());
-                          handleRefresh();
+                          await handleRefresh();
+                          alert('Batch rejection successful');
                         } catch (e: any) {
                           alert('Batch failed: ' + e.message);
                         }
@@ -1380,7 +1383,7 @@ const App: React.FC = () => {
                     )}
                   </td>
                   <td className="px-6 py-4 text-right text-slate-500 font-mono text-xs">
-                    {new Date(email.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(email.receivedAt).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </td>
                 </tr>
               ))}
@@ -1648,10 +1651,23 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 shadow-sm" title="Total API Tokens Used">
+            <button
+              onClick={() => setTokenDisplayMode(mode => mode === 'count' ? 'percentage' : 'count')}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 shadow-sm hover:bg-slate-200 transition-colors cursor-pointer"
+              title={`Click to toggle between token count and percentage. Total limit: 100,000 tokens`}
+            >
               <Cpu className="w-3.5 h-3.5 text-blue-500" />
-              <span>{backendStats?.totalTokens ? backendStats.totalTokens.toLocaleString() : '0'} Tokens</span>
-            </div>
+              {tokenDisplayMode === 'count' ? (
+                <span>{backendStats?.totalTokens ? backendStats.totalTokens.toLocaleString() : '0'} Tokens</span>
+              ) : (
+                <span>
+                  {backendStats?.totalTokens ?
+                    `${((backendStats.totalTokens / 100000) * 100).toFixed(2)}%` :
+                    '0%'
+                  } of 100K
+                </span>
+              )}
+            </button>
             <button onClick={handleExportCSV} className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-slate-50 transition-colors text-slate-700 shadow-sm">
               <Download className="w-3.5 h-3.5" /> Export
             </button>

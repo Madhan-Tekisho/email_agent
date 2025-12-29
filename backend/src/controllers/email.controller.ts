@@ -31,15 +31,8 @@ export const EmailController = {
             // email.generated_reply comes from the updated model query
             await emailService.sendEmail(email.from_email, "Re: " + email.subject, email.generated_reply || "No reply generated", undefined);
 
-            // Record history event
-            const historyItem = {
-                timestamp: new Date().toISOString(),
-                actor: actor,
-                action: 'approve',
-                details: `Email approved and sent by ${actor}`
-            };
-
-            await EmailModel.updateStatusAndHistory(id, 'human_answered', historyItem);
+            // Update status without history (history column doesn't exist)
+            await EmailModel.updateStatus(id, 'human_answered');
             res.json({ success: true });
         } catch (e: any) {
             console.error(e);
@@ -53,13 +46,8 @@ export const EmailController = {
         const actor = user?.email || 'Unknown User';
 
         try {
-            const historyItem = {
-                timestamp: new Date().toISOString(),
-                actor: actor,
-                action: 'reject',
-                details: `Email rejected/archived by ${actor}`
-            };
-            await EmailModel.updateStatusAndHistory(id, 'archived', historyItem);
+            // Update status without history (history column doesn't exist)
+            await EmailModel.updateStatus(id, 'archived');
             res.json({ success: true });
         } catch (e: any) {
             console.error(e);
@@ -102,14 +90,8 @@ export const EmailController = {
                                 ccList.length > 0 ? ccList.join(',') : undefined
                             );
 
-                            const historyItem = {
-                                timestamp: new Date().toISOString(),
-                                actor: actor,
-                                action: 'approve_batch',
-                                details: `Email approved via batch by ${actor}`
-                            };
-
-                            await EmailModel.updateStatusAndHistory(id, 'human_answered', historyItem);
+                            // Update status without history (history column doesn't exist)
+                            await EmailModel.updateStatus(id, 'human_answered');
                             successCount++;
                         } else {
                             failCount++;
@@ -124,13 +106,8 @@ export const EmailController = {
             } else if (action === 'reject') {
                 // Bulk update would be better in Model, but loop is fine for MVP
                 for (const id of emailIds) {
-                    const historyItem = {
-                        timestamp: new Date().toISOString(),
-                        actor: actor,
-                        action: 'reject_batch',
-                        details: `Email rejected via batch by ${actor}`
-                    };
-                    await EmailModel.updateStatusAndHistory(id, 'archived', historyItem);
+                    // Update status without history (history column doesn't exist)
+                    await EmailModel.updateStatus(id, 'archived');
                 }
                 res.json({ success: true, processed: emailIds.length });
             } else {
