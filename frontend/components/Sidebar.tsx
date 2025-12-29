@@ -1,26 +1,14 @@
-import { LayoutDashboard, Mail, FileText, Settings, LogOut, ShieldCheck, BarChart3, HelpCircle, X } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { LayoutDashboard, Mail, FileText, Settings, LogOut, ShieldCheck, BarChart3, HelpCircle, X, Link } from 'lucide-react';
+import React from 'react';
 
 interface SidebarProps {
   currentView: string;
   setView: (view: string) => void;
   onLogout: () => void;
-  userRole: string;
+  user: { role: string; departmentName?: string };
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onLogout, userRole }) => {
-  const [showGmailHelp, setShowGmailHelp] = useState(false);
-  const [helpPos, setHelpPos] = useState({ top: 0, left: 0 });
-  const helpBtnRef = useRef<HTMLButtonElement>(null);
-
-  const toggleHelp = () => {
-    if (!showGmailHelp && helpBtnRef.current) {
-      const rect = helpBtnRef.current.getBoundingClientRect();
-      setHelpPos({ top: rect.top, left: rect.right + 10 });
-    }
-    setShowGmailHelp(!showGmailHelp);
-  };
-
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onLogout, user }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'analytics', label: 'Intelligence', icon: BarChart3 },
@@ -64,135 +52,66 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onLogout, userR
           </nav>
         </div>
 
+
         <div>
           <p className="px-3 text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">System</p>
-
-          {userRole === 'SuperAdmin' && (
+          <nav className="space-y-1">
             <button
-              onClick={() => setView('settings')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all`}
+              onClick={() => setView('profile')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${currentView === 'profile'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
             >
-              <Settings className="w-4 h-4 text-slate-500 group-hover:text-white" />
-              Configuration
+              <Link className={`w-4 h-4 transition-colors ${currentView === 'profile' ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+              My Profile
             </button>
-          )}
-
-          {/* Dynamic Gmail Config - SuperAdmin Only */}
-          {userRole === 'SuperAdmin' && (
-            <div className="mt-6 px-3 relative">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gmail Config</p>
-                <button
-                  ref={helpBtnRef}
-                  onClick={toggleHelp}
-                  className="text-slate-500 hover:text-blue-400 transition-colors"
-                  title="How to get App Password"
-                >
-                  <HelpCircle className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Help Popup */}
-              {showGmailHelp && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40 bg-transparent cursor-default"
-                    onClick={() => setShowGmailHelp(false)}
-                  />
-                  <div
-                    className="fixed w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-4 z-50 text-left"
-                    style={{ top: helpPos.top, left: helpPos.left }}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="text-sm font-bold text-white">App Password Setup</h4>
-                      <button onClick={() => setShowGmailHelp(false)} className="text-slate-400 hover:text-white">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <ol className="list-decimal list-inside text-xs text-slate-300 space-y-1.5 mb-3">
-                      <li>Enable <strong>2-Step Verification</strong> in Google Account.</li>
-                      <li>Go to <strong>Security</strong> &gt; <strong>App Passwords</strong>.</li>
-                      <li>Create new app password for "Email Agent".</li>
-                    </ol>
-                    <a
-                      href="https://myaccount.google.com/security"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white text-xs py-1.5 rounded transition-colors font-medium"
-                    >
-                      Open Google Security
-                    </a>
-                    {/* Arrow Pointer - approximated since it's fixed now, or removed for simplicity */}
-                  </div>
-                </>
-              )}
-              <div className="space-y-2">
-                <input
-                  type="email"
-                  id="gmail-user-input"
-                  placeholder="Gmail Address"
-                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-blue-500"
-                />
-                <input
-                  type="password"
-                  id="gmail-pass-input"
-                  placeholder="App Password"
-                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300 focus:outline-none focus:border-blue-500"
-                />
-                <button
-                  onClick={async () => {
-                    const emailInput = document.getElementById('gmail-user-input') as HTMLInputElement;
-                    const passInput = document.getElementById('gmail-pass-input') as HTMLInputElement;
-                    if (emailInput && passInput) {
-                      const email = emailInput.value;
-                      const password = passInput.value;
-                      if (!email || !password) return alert('Enter email and password');
-
-                      try {
-                        const res = await fetch('/api/system/config/gmail', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ email, password })
-                        });
-                        const data = await res.json();
-                        if (data.success) alert('Gmail Config Updated!');
-                        else alert('Error: ' + data.error);
-                      } catch (e: any) {
-                        alert('Failed to update config: ' + e.message);
-                      }
-                    }
-                  }}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 rounded transition-colors"
-                >
-                  Update Credentials
-                </button>
-              </div>
-            </div>
-          )}
+            {user.role === 'SuperAdmin' && (
+              <button
+                onClick={() => setView('settings')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${currentView === 'settings'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+              >
+                <Settings className={`w-4 h-4 transition-colors ${currentView === 'settings' ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                Configuration
+              </button>
+            )}
+          </nav>
         </div>
       </div>
 
       {/* User Footer */}
-      <div className="p-4 border-t border-slate-800 bg-slate-900">
-        <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-slate-800 border border-slate-700">
-          <div className="w-8 h-8 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-inner relative">
-            {userRole.substring(0, 2).toUpperCase()}
-            {userRole === 'SuperAdmin' && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border border-slate-900 rounded-full flex items-center justify-center outline outline-1 outline-red-500/50" title="Super Admin">
-                <span className="w-1 h-1 bg-white rounded-full"></span>
+      <div className="p-4 border-t border-slate-800 bg-slate-900 relative">
+        {/* User Profile Card */}
+        <div
+          className={`group flex items-center gap-3 mb-4 p-3 rounded-xl border transition-all bg-slate-800/50 border-slate-800`}
+        >
+          <div className="relative">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-inner">
+              {user.role.substring(0, 2).toUpperCase()}
+            </div>
+            {user.role === 'SuperAdmin' && (
+              <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-slate-900 rounded-full flex items-center justify-center">
+                <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
               </div>
             )}
           </div>
-          <div className="overflow-hidden">
-            <p className="text-xs font-bold text-slate-200 truncate">Operator ID: 8492</p>
-            <p className="text-[10px] text-blue-400 truncate uppercase font-semibold">{userRole}</p>
+
+          <div className="overflow-hidden flex-1">
+            <p className="text-xs font-bold text-slate-200 truncate group-hover:text-white transition-colors">
+              {user.departmentName ? user.departmentName : 'Operator ID: 8492'}
+            </p>
+            <p className="text-[10px] text-blue-400 truncate uppercase font-bold tracking-wide">{user.role}</p>
           </div>
         </div>
+
         <button
           onClick={onLogout}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/50 transition-all"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-slate-950 text-slate-400 border border-slate-800 rounded-xl text-xs font-bold hover:bg-red-950/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
         >
-          <LogOut className="w-3.5 h-3.5" />
+          <LogOut className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
           Sign Out
         </button>
       </div>

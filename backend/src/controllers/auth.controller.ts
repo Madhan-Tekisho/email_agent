@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { createUser, findUserByEmail, findUserById } from '../models/user.model';
+import { supabase } from '../db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key';
 
@@ -62,6 +63,25 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        // Dynamic Role Check: Sync with Departments table
+        const { data: deptHeadData } = await supabase
+            .from('departments')
+            .select('*')
+            .eq('head_email', email)
+            .single();
+
+        if (deptHeadData) {
+            console.log(`User ${email} identified as head of ${deptHeadData.name}. Updating role.`);
+            user.role = 'DeptHead'; // or 'Department Head' depending on enum, assuming 'DeptHead' based on previous context
+            user.department_id = deptHeadData.id;
+
+            // Persist update
+            await supabase
+                .from('users')
+                .update({ role: 'DeptHead', department_id: deptHeadData.id })
+                .eq('id', user.id);
+        }
+
         const token = jwt.sign(
             { id: user.id, email: user.user_email, role: user.role },
             JWT_SECRET,
@@ -76,7 +96,8 @@ export const login = async (req: Request, res: Response) => {
                 email: user.user_email,
                 name: user.name,
                 role: user.role,
-                departmentId: user.department_id
+                departmentId: user.department_id,
+                departmentName: deptHeadData ? deptHeadData.name : undefined
             }
         });
     } catch (error) {
@@ -99,13 +120,25 @@ export const getCurrentUser = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
+        // Fetch department name if applicable
+        let departmentName = undefined;
+        if (user.department_id) {
+            const { data: dept } = await supabase
+                .from('departments')
+                .select('name')
+                .eq('id', user.department_id)
+                .single();
+            if (dept) departmentName = dept.name;
+        }
+
         res.json({
             user: {
                 id: user.id,
                 email: user.user_email,
                 name: user.name,
                 role: user.role,
-                departmentId: user.department_id
+                departmentId: user.department_id,
+                departmentName
             }
         });
     } catch (error) {
@@ -115,7 +148,6 @@ export const getCurrentUser = async (req: Request, res: Response) => {
 };
 
 // --- Forgot Password Logic ---
-import { supabase } from '../db';
 import { emailService } from '../services/processor';
 import crypto from 'crypto';
 
@@ -211,5 +243,41 @@ export const resetPassword = async (req: Request, res: Response) => {
     } catch (e: any) {
         console.error("Reset password error:", e);
         res.status(500).json({ message: e.message });
+    }
+};
+
+export const requestUploadOtp = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ message: 'Email required' });
+
+        const user = await findUserByEmail(email);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Generate 6-digit OTP
+        const otp = crypto.randomInt(100000, 999999).toString();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+
+        // Store in DB
+        const { error } = await supabase.from('otp_codes').insert({
+            email,
+            otp,
+            expires_at: expiresAt.toISOString()
+        });
+
+        if (error) throw error;
+
+        // Send Email
+        console.log(`Sending OTP ${otp} to ${email}`);
+        await emailService.sendEmail(
+            email,
+            'Upload Verification OTP',
+            `Your OTP for document upload is: ${otp}\n\nIt expires in 5 minutes.`
+        );
+
+        res.json({ message: 'OTP sent to email', email });
+    } catch (e: any) {
+        console.error("Request upload OTP error:", e);
+        res.status(500).json({ message: 'Internal error' });
     }
 };

@@ -28,4 +28,63 @@ export const DocumentModel = {
 
         return result;
     },
+
+    getById: async (id: string) => {
+        const { data, error } = await supabase
+            .from('kb_documents')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('DocumentModel.getById error:', error);
+            throw error;
+        }
+
+        return data;
+    },
+
+    findByTitle: async (title: string) => {
+        const { data, error } = await supabase
+            .from('kb_documents')
+            .select('*')
+            .filter('metadata->>title', 'ilike', title)
+            .maybeSingle();
+
+        if (error) {
+            console.error('DocumentModel.findByTitle error:', error);
+            return null;
+        }
+        return data;
+    },
+
+    getAll: async () => {
+        const { data, error } = await supabase
+            .from('kb_documents')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('DocumentModel.getAll error:', error);
+            throw error;
+        }
+
+        return data;
+    },
+
+    updateDepartment: async (id: string, newDeptId: string) => {
+        const { data, error } = await supabase
+            .from('kb_documents')
+            .update({ department_id: newDeptId })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('DocumentModel.updateDepartment error:', error);
+            throw error;
+        }
+
+        return data;
+    }
 };

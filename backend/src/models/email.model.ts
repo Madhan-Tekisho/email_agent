@@ -6,7 +6,7 @@ export const EmailModel = {
             .from('emails')
             .select(`
                 id, subject, status, confidence_score, body_text, generated_reply, 
-                from_email, created_at, priority, intent, token_used,
+                from_email, created_at, priority, intent, token_used, cc_email_sent_to,
                 departments (name)
             `)
             .order('created_at', { ascending: false });
@@ -21,7 +21,8 @@ export const EmailModel = {
             rows: data?.map(row => ({
                 ...row,
                 confidence: row.confidence_score,
-                dept_name: (row.departments as any)?.name || null
+                dept_name: (row.departments as any)?.name || null,
+                cc: row.cc_email_sent_to ? row.cc_email_sent_to.split(',') : []
             })) || []
         };
     },
@@ -92,6 +93,32 @@ export const EmailModel = {
 
         if (error) {
             console.error('updateStatus error:', error);
+            throw error;
+        }
+
+        return { rows: data || [], rowCount: 1 };
+    },
+
+    updateStatusAndHistory: async (id: string | number, status: string, historyItem: any) => {
+        // First get current history
+        const { data: current, error: getError } = await supabase
+            .from('emails')
+            .select('history')
+            .eq('id', id)
+            .single();
+
+        if (getError) throw getError;
+
+        const history = Array.isArray(current.history) ? current.history : [];
+        history.push(historyItem);
+
+        const { data, error } = await supabase
+            .from('emails')
+            .update({ status, history })
+            .eq('id', id);
+
+        if (error) {
+            console.error('updateStatusAndHistory error:', error);
             throw error;
         }
 

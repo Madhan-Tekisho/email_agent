@@ -16,6 +16,7 @@ interface BackendEmail {
     priority?: string;
     intent?: string;
     token_used?: number;
+    cc?: string[];
 }
 
 export const api = {
@@ -39,6 +40,7 @@ export const api = {
             status: mapStatus(row.status),
             suggestedResponse: row.generated_reply || undefined,
             tokenUsed: row.token_used || 0,
+            cc: row.cc || [],
             history: []
         }));
 
@@ -53,12 +55,32 @@ export const api = {
         await fetch(`${API_BASE}/emails/${id}/reject`, { method: 'POST' });
     },
 
-    async uploadDocument(file: File, deptId: string): Promise<{ success: boolean; chunks: number }> {
+    async batchProcess(emailIds: string[], action: 'approve' | 'reject'): Promise<{ success: boolean; processed: number; failed?: number }> {
+        const res = await fetch(`${API_BASE}/emails/batch/process`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ emailIds, action })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Batch process failed');
+        }
+        return res.json();
+    },
+
+    async uploadDocument(file: File, deptId: string, otp?: string): Promise<{ success: boolean; chunks: number }> {
+        console.log("api.uploadDocument:", file);
         const formData = new FormData();
-        formData.append('file', file);
         formData.append('dept_id', deptId);
+        if (otp) formData.append('otp', otp);
+        formData.append('file', file);
+
+        console.log("FormData created. File size:", file.size);
         const res = await fetch(`${API_BASE}/documents`, {
             method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
             body: formData
         });
         if (!res.ok) {
@@ -66,6 +88,30 @@ export const api = {
             throw new Error(data.error || `Upload failed with status ${res.status}`);
         }
         return res.json();
+    },
+
+    async getDocumentContent(id: string): Promise<{ id: string; title: string; content: string; department: string }> {
+        const res = await fetch(`${API_BASE}/documents/${id}/content`);
+        if (!res.ok) throw new Error('Failed to fetch document content');
+        return res.json();
+    },
+
+    async getDocuments(): Promise<any[]> {
+        const res = await fetch(`${API_BASE}/documents`);
+        if (!res.ok) throw new Error('Failed to fetch documents');
+        return res.json();
+    },
+
+    async reassignDocument(id: string, targetDeptId: string): Promise<void> {
+        const res = await fetch(`${API_BASE}/documents/${id}/reassign`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_department_id: targetDeptId })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Failed to reassign document');
+        }
     },
 
     async getDepartments(): Promise<any[]> {
@@ -79,6 +125,30 @@ export const api = {
             console.error('Failed to fetch RAG stats');
             return { totalDocs: 0, avgUsage: 0, coverageGaps: 0, qualityScore: 0 };
         }
+        return res.json();
+    },
+
+    async getAnalyticsOverview(): Promise<any> {
+        const res = await fetch(`${API_BASE}/analytics/overview`);
+        return res.json();
+    },
+
+    async getAnalyticsDepartment(): Promise<any[]> {
+        const res = await fetch(`${API_BASE}/analytics/department`);
+        return res.json();
+    },
+
+    async getAnalyticsTrends(): Promise<any[]> {
+        const res = await fetch(`${API_BASE}/analytics/trends`);
+        return res.json();
+    },
+
+    async getUserStats(email: string): Promise<any> {
+        const res = await fetch(`${API_BASE}/analytics/user-stats`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
         return res.json();
     },
 
@@ -99,7 +169,10 @@ export const api = {
     async updateDepartmentHead(id: string, headName: string, headEmail: string): Promise<void> {
         const res = await fetch(`${API_BASE}/departments/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
             body: JSON.stringify({ head_name: headName, head_email: headEmail })
         });
         if (!res.ok) throw new Error('Failed to update department head');
@@ -212,6 +285,19 @@ export const api = {
         if (!res.ok) {
             const data = await res.json();
             throw new Error(data.message || 'Failed to reset password');
+        }
+        return res.json();
+    },
+
+    async requestUploadOtp(email: string): Promise<any> {
+        const res = await fetch(`${API_BASE}/auth/request-upload-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.message || 'Failed to send OTP');
         }
         return res.json();
     }

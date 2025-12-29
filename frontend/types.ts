@@ -92,6 +92,7 @@ export interface User {
   companyId: string;
   companyName: string;
   role: 'SuperAdmin' | 'Admin' | 'User' | 'DeptHead';
+  departmentName?: string;
 }
 
 export interface RagStats {

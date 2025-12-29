@@ -270,4 +270,16 @@ FORMAT:
             return { totalVectors: 0 };
         }
     }
+
+    async deleteVectors(filter: any) {
+        if (!this.pinecone) return;
+        try {
+            const index = this.pinecone.index(this.indexName);
+            // Pinecone deleteMany takes a filter object directly
+            await index.deleteMany(filter);
+            console.log("Deleted vectors with filter:", filter);
+        } catch (e) {
+            console.error("Pinecone delete failed", e);
+        }
+    }
 }

@@ -10,7 +10,7 @@ export interface User {
     password_hash?: string;
 }
 
-export const createUser = async (email: string, passwordHash: string, name?: string, role: string = 'employee', departmentId?: string): Promise<User> => {
+export const createUser = async (email: string, passwordHash: string, name?: string, role: string = 'User', departmentId?: string): Promise<User> => {
     const { data, error } = await supabase
         .from('users')
         .insert({

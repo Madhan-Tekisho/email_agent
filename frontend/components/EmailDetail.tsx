@@ -101,7 +101,7 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ email, documents, onClose, on
                <div className="flex-1 overflow-y-auto p-6 space-y-8">
                   <div>
                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 block">Message Body</label>
-                     <div className="text-sm text-slate-700 leading-relaxed bg-white p-5 rounded-xl border border-slate-200 shadow-sm whitespace-pre-wrap">
+                     <div className="text-sm text-slate-700 leading-relaxed bg-white p-5 rounded-xl border border-slate-200 shadow-sm whitespace-pre-wrap break-words">
                         {email.body}
                      </div>
                   </div>
