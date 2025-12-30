@@ -11,6 +11,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Health Check for Render
+app.get('/', (req, res) => {
+    res.send('Email Agent Backend is running');
+});
+
 // Routes
 app.use('/api', routes);
 

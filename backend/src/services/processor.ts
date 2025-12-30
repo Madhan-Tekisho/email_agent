@@ -232,8 +232,8 @@ export const processEmails = async () => {
                     await supabase
                         .from('emails')
                         .update({
-                            status: 'rag_answered',
-                            rag_meta: { used_chunks: context, auto_sent: true },
+                            status: 'needs_review',
+                            rag_meta: { used_chunks: context, auto_sent: true, holding_sent: true },
                             sent_at: new Date().toISOString(),
                             cc_email_sent_to: ccString,
                             token_used: totalTokens
