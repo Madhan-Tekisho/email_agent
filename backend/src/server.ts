@@ -13,6 +13,8 @@ app.use(express.json());
 
 // Routes
 app.use('/api', routes);
+import webhookRoutes from './routes/webhook.routes';
+app.use('/webhooks', webhookRoutes);
 
 const PORT = process.env.PORT || 4000;
 
@@ -23,9 +25,17 @@ emailService.init().then(() => {
     console.error("Failed to initialize Email Service:", err);
 });
 
-// Start loop
+// Initialize Gmail Watch (if configured)
+import { GmailService } from './services/gmail.service';
+if (process.env.GOOGLE_REFRESH_TOKEN && process.env.PUBSUB_TOPIC_NAME) {
+    const gmailService = new GmailService();
+    gmailService.watch().catch(err => console.error("Failed to start Gmail Watch:", err.message));
+} else {
+    console.log("Gmail Webhooks skipped (GOOGLE_REFRESH_TOKEN or PUBSUB_TOPIC_NAME missing)");
+}
 
-// Start loop
+/* 
+// POLLING DISABLED - Relying on Gmail Push Notifications (Webhooks)
 let isProcessing = false;
 
 setInterval(async () => {
@@ -45,7 +55,9 @@ setInterval(async () => {
         isProcessing = false;
     }
     console.log("Next poll in 10 seconds...");
-}, 10000); // Poll every 10 seconds
+}, 10000); 
+*/
+console.log("IMAP Polling is DISABLED. Waiting for Webhook events...");
 
 const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
