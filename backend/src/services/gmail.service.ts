@@ -105,6 +105,8 @@ export class GmailService {
             // Triggers like "Label Changed" or "Thread Updated" might send us old read emails.
             // We only want to process brand new unread emails.
             const labelIds = res.data.labelIds || [];
+            console.log(`DEBUG: Checking email ${messageId}. Labels:`, labelIds); // <--- DEBUG LOG
+
             if (!labelIds.includes('UNREAD')) {
                 console.log(`Skipping message ${messageId} (Already READ or not relevant)`);
                 return null;
