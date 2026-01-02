@@ -68,14 +68,15 @@ export class GmailService {
             });
 
             const history = res.data.history || [];
-            const newMessages: { id: string, threadId: string }[] = [];
+            // Dedup using a Map to avoid processing same message multiple times from one hook
+            const uniqueMessages = new Map<string, { id: string, threadId: string }>();
 
             for (const record of history) {
                 if (record.messagesAdded) {
                     for (const msg of record.messagesAdded) {
-                        if (msg.message) {
-                            newMessages.push({
-                                id: msg.message.id!,
+                        if (msg.message && msg.message.id) {
+                            uniqueMessages.set(msg.message.id, {
+                                id: msg.message.id,
                                 threadId: msg.message.threadId!
                             });
                         }
@@ -83,7 +84,7 @@ export class GmailService {
                 }
             }
 
-            return newMessages;
+            return Array.from(uniqueMessages.values());
         } catch (error) {
             console.error('Error fetching history:', error);
             // If historyId is too old (404), we might need to do a full sync or ignore.
@@ -99,6 +100,15 @@ export class GmailService {
                 id: messageId,
                 format: 'raw' // Get full raw content to parse manually
             });
+
+            // STRICT CHECK: Ignore if not UNREAD
+            // Triggers like "Label Changed" or "Thread Updated" might send us old read emails.
+            // We only want to process brand new unread emails.
+            const labelIds = res.data.labelIds || [];
+            if (!labelIds.includes('UNREAD')) {
+                console.log(`Skipping message ${messageId} (Already READ or not relevant)`);
+                return null;
+            }
 
             const rawBase64 = res.data.raw;
             if (!rawBase64) throw new Error("No raw content found");
