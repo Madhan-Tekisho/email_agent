@@ -93,6 +93,26 @@ export class GmailService {
         }
     }
 
+    /**
+     * DIRECT FETCH: Get all UNREAD emails from INBOX
+     * More reliable than historyId for "current state"
+     */
+    async fetchUnreadMessages() {
+        try {
+            const res = await this.gmail.users.messages.list({
+                userId: 'me',
+                q: 'label:INBOX is:unread',
+                maxResults: 10 // Process batch of 10 to avoid timeouts/limits
+            });
+
+            console.log(`Direct fetch: Found ${res.data.resultSizeEstimate} unread messages.`);
+            return res.data.messages || [];
+        } catch (error) {
+            console.error('Error in fetchUnreadMessages:', error);
+            return [];
+        }
+    }
+
     async fetchEmailWaitRequest(messageId: string) {
         try {
             const res = await this.gmail.users.messages.get({

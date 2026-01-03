@@ -40,16 +40,35 @@ export const processSingleEmail = async (email: any) => {
     try {
         console.log(`Processing email: ${email.subject} from ${email.from}`);
 
+        // Normalize email address (extract from "Name <email>")
+        const fromMatch = email.from ? email.from.match(/<([^>]+)>/) : null;
+        const normalizedFrom = fromMatch ? fromMatch[1] : email.from;
+
         // DUPLICATE CHECK - check emails from last hour with same subject and sender
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
         const { data: duplicates, error: dupError } = await supabase
             .from('emails')
             .select('id')
             .eq('subject', email.subject)
-            .eq('from_email', email.from)
+            .eq('from_email', email.from) // Check original first
             .gte('created_at', oneHourAgo);
 
-        if (duplicates && duplicates.length > 0) {
+        // Double check with normalized if needed, or just rely on exact match? 
+        // Better to check robustly.
+        let isDuplicate = duplicates && duplicates.length > 0;
+
+        if (!isDuplicate && normalizedFrom !== email.from) {
+            const { data: duplicatesNorm } = await supabase
+                .from('emails')
+                .select('id')
+                .eq('subject', email.subject)
+                .eq('from_email', normalizedFrom)
+                .gte('created_at', oneHourAgo);
+
+            if (duplicatesNorm && duplicatesNorm.length > 0) isDuplicate = true;
+        }
+
+        if (isDuplicate) {
             console.log(`Duplicate email detected (Subject: ${email.subject}). Skipping processing.`);
             // Mark as seen if it's a retry
             if (email.uid) await emailService.markEmailAsSeen(email.uid);

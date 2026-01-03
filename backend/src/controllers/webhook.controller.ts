@@ -46,10 +46,16 @@ export const handleGmailWebhook = async (req: Request, res: Response) => {
         // Fire and forget logic
         (async () => {
             try {
-                const messageIds = await gmailService.fetchUpdates(historyId);
-                console.log(`Webhook: Found ${messageIds.length} new messages.`);
+                // CHANGED: Instead of relying on historyId (which misses things if stale), 
+                // we just check for ANY unread email in inbox.
+                // const messageIds = await gmailService.fetchUpdates(historyId); 
+                const messageIds = await gmailService.fetchUnreadMessages();
+
+                console.log(`Webhook triggered scan: Found ${messageIds.length} UNREAD messages.`);
 
                 for (const msg of messageIds) {
+                    if (!msg.id) continue;
+
                     // Fetch full content
                     const fullEmail = await gmailService.fetchEmailWaitRequest(msg.id);
                     if (fullEmail) {
