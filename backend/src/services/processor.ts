@@ -34,7 +34,10 @@ export const processEmails = async () => {
 };
 
 import { GmailService } from './gmail.service';
+import { FeedbackService } from './feedback.service';
+
 const gmailService = new GmailService();
+const feedbackService = new FeedbackService();
 
 export const processSingleEmail = async (email: any) => {
     try {
@@ -287,6 +290,12 @@ export const processSingleEmail = async (email: any) => {
                         token_used: totalTokens
                     })
                     .eq('id', newEmailId);
+
+                // [NEW] Trigger Feedback Request
+                // Note: We send this asynchronously to not block the main process
+                feedbackService.requestFeedback(newEmailId, email.from, email.subject).catch(err => {
+                    console.error("Failed to send feedback request:", err);
+                });
             }
         }
 

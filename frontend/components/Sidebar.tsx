@@ -57,6 +57,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onLogout, user 
           <p className="px-3 text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">System</p>
           <nav className="space-y-1">
             <button
+              onClick={() => setView('feedback')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${currentView === 'feedback'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+            >
+              <HelpCircle className={`w-4 h-4 transition-colors ${currentView === 'feedback' ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+              User Feedback
+            </button>
+            <button
               onClick={() => setView('profile')}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${currentView === 'profile'
                 ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20'

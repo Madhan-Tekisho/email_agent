@@ -7,6 +7,8 @@ import StatCard from './components/StatCard';
 import EmailDetail from './components/EmailDetail';
 import AnalyticsView from './components/AnalyticsView';
 import ProfileView from './components/ProfileView';
+import FeedbackSubmission from './components/FeedbackSubmission'; // [NEW]
+import FeedbackDashboard from './components/FeedbackDashboard';   // [NEW]
 import { classifyEmailWithGemini } from './services/geminiService';
 import { api } from './services/api';
 import {
@@ -16,13 +18,14 @@ import {
   Trash2, Star, Flag, Paperclip, Minimize2, Maximize2, X,
   FileText, Users, Bot, Zap, Activity, ShieldCheck,
   Building2, Lock, User as UserIcon, LogOut, Save, UserMinus, UserPlus, Sparkles, Calendar, Shield,
-  Plus, AlertTriangle, Cpu, CheckCircle2, ArrowRightLeft
+  Plus, AlertTriangle, Cpu, CheckCircle2, ArrowRightLeft, HelpCircle
 } from 'lucide-react';
 
 const App: React.FC = () => {
   // --- State ---
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState('dashboard');
+  const [feedbackToken, setFeedbackToken] = useState<string | null>(null); // [NEW] Token for public feedback
 
   const [emails, setEmails] = useState<EmailData[]>([]);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -90,6 +93,15 @@ const App: React.FC = () => {
   useEffect(() => {
     // Check for token on load
     const token = localStorage.getItem('token');
+
+    // [NEW] Check for public feedback token
+    const urlParams = new URLSearchParams(window.location.search);
+    const fToken = urlParams.get('token');
+    if (fToken) {
+      setFeedbackToken(fToken);
+      return; // Skip auth check if we are in feedback mode
+    }
+
     if (token) {
       api.getCurrentUser(token)
         .then(({ user: apiUser }) => {
@@ -1440,6 +1452,10 @@ const App: React.FC = () => {
   };
 
   // --- Main Render ---
+  if (feedbackToken) {
+    return <FeedbackSubmission token={feedbackToken} />;
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -1687,6 +1703,7 @@ const App: React.FC = () => {
             {view === 'emails' && renderEmailList()}
             {view === 'analytics' && <AnalyticsView />}
             {view === 'profile' && user && <ProfileView user={user} />}
+            {view === 'feedback' && <FeedbackDashboard />}
             {view === 'settings' && renderConfiguration()}
             {view === 'documents' && (
               <div className="space-y-6 animate-fade-in">
