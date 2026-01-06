@@ -769,6 +769,26 @@ const App: React.FC = () => {
                           >
                             Review
                           </button>
+
+                          {/* Revert Button for Resolved Emails */}
+                          {email.status === EmailStatus.AUTO_RESOLVED && (
+                            <button
+                              title="Revert to Needs Review"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!confirm("Revert this email to 'Needs Review' status?")) return;
+                                try {
+                                  await api.revertEmailStatus(email.id);
+                                  await handleRefresh();
+                                } catch (err: any) {
+                                  alert(err.message || "Failed to revert status");
+                                }
+                              }}
+                              className="ml-2 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-colors shadow-sm"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ));

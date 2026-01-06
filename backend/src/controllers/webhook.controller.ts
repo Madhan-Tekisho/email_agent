@@ -46,9 +46,8 @@ export const handleGmailWebhook = async (req: Request, res: Response) => {
         // Fire and forget logic
         (async () => {
             try {
-                // CHANGED: Instead of relying on historyId (which misses things if stale), 
-                // we just check for ANY unread email in inbox.
-                // const messageIds = await gmailService.fetchUpdates(historyId); 
+                // Reverting to fetchUnreadMessages for reliability.
+                // processor.ts handles deduplication, so this is safe.
                 const messageIds = await gmailService.fetchUnreadMessages();
 
                 console.log(`Webhook triggered scan: Found ${messageIds.length} UNREAD messages.`);

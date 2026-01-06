@@ -68,8 +68,9 @@ export const FeedbackModel = {
     getStats: async () => {
         const { data, error } = await supabase
             .from('feedback')
-            .select('rating, create_time:created_at')
-            .eq('status', 'submitted');
+            .select('rating, comment, status, created_at, email_id, emails(subject, from_email)')
+            .eq('status', 'submitted')
+            .order('created_at', { ascending: false });
 
         if (error) return { count: 0, avg: 0 };
 

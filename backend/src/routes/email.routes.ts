@@ -8,5 +8,6 @@ router.get('/', EmailController.getPending);
 router.post('/:id/approve', EmailController.approve);
 router.post('/:id/reject', EmailController.reject);
 router.post('/batch/process', EmailController.batchProcess);
+router.post('/:id/revert', EmailController.revertStatus);
 
 export default router;

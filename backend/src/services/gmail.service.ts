@@ -113,8 +113,22 @@ export class GmailService {
         }
     }
 
+    // In-memory cache to prevent duplicate processing (Static to share across instances)
+    private static processedCache = new Set<string>();
+
     async fetchEmailWaitRequest(messageId: string) {
         try {
+            // 1. IN-MEMORY DEDUPLICATION CHECK
+            if (GmailService.processedCache.has(messageId)) {
+                console.log(`Skipping message ${messageId} (In-Memory Cache: Already processing/processed recently)`);
+                return null;
+            }
+
+            // Lock it immediately
+            GmailService.processedCache.add(messageId);
+            // Auto-expire after 5 minutes to prevent permanent blocking in case of error
+            setTimeout(() => GmailService.processedCache.delete(messageId), 5 * 60 * 1000);
+
             const res = await this.gmail.users.messages.get({
                 userId: 'me',
                 id: messageId,

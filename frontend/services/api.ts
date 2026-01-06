@@ -55,6 +55,10 @@ export const api = {
         await fetch(`${API_BASE}/emails/${id}/reject`, { method: 'POST' });
     },
 
+    async revertEmailStatus(id: string): Promise<void> {
+        await fetch(`${API_BASE}/emails/${id}/revert`, { method: 'POST' });
+    },
+
     async batchProcess(emailIds: string[], action: 'approve' | 'reject'): Promise<{ success: boolean; processed: number; failed?: number }> {
         const res = await fetch(`${API_BASE}/emails/batch/process`, {
             method: 'POST',
