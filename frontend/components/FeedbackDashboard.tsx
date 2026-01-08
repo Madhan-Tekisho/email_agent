@@ -59,9 +59,13 @@ const FeedbackDashboard: React.FC = () => {
                         <TrendingUp className="w-6 h-6" />
                     </div>
                     <div>
-                        {/* Mock Trend for now */}
-                        <div className="text-3xl font-bold text-slate-900">+12%</div>
+                        <div className={`text-3xl font-bold ${!stats?.trend_direction || stats?.trend_direction === 'neutral' ? 'text-slate-900' :
+                                stats?.trend_direction === 'up' ? 'text-emerald-600' : 'text-red-500'
+                            }`}>
+                            {stats?.trend > 0 ? '+' : ''}{stats?.trend || 0}%
+                        </div>
                         <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Satisfaction Trend</div>
+                        <div className="text-[10px] text-slate-400 mt-1">vs previous 7 days</div>
                     </div>
                 </div>
             </div>

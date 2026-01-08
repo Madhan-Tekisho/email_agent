@@ -17,6 +17,7 @@ interface BackendEmail {
     intent?: string;
     token_used?: number;
     cc?: string[];
+    rag_meta?: { escalation_sent?: boolean; reminder_sent?: boolean;[key: string]: any };
 }
 
 export const api = {
@@ -41,7 +42,8 @@ export const api = {
             suggestedResponse: row.generated_reply || undefined,
             tokenUsed: row.token_used || 0,
             cc: row.cc || [],
-            history: []
+            history: [],
+            ragMeta: row.rag_meta || undefined
         }));
 
         return { emails, metrics: data.metrics };

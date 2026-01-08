@@ -527,7 +527,7 @@ const App: React.FC = () => {
       pending: backendStats?.queue || emails.filter(e => e.status !== EmailStatus.SENT && e.status !== EmailStatus.AUTO_RESOLVED).length,
       autoResolved: backendStats?.sent || emails.filter(e => e.status === EmailStatus.AUTO_RESOLVED).length,
       highPriority: emails.filter(e => e.priority === Priority.HIGH && e.status !== EmailStatus.SENT).length,
-      breached: emails.filter(e => e.status === EmailStatus.SLA_BREACHED).length,
+      breached: emails.filter(e => e.ragMeta?.escalation_sent === true).length,
     };
 
     return (
@@ -686,7 +686,7 @@ const App: React.FC = () => {
                           if (dashboardView === 'pending') return e.status !== EmailStatus.SENT && e.status !== EmailStatus.AUTO_RESOLVED;
                           if (dashboardView === 'resolved') return e.status === EmailStatus.AUTO_RESOLVED;
                           if (dashboardView === 'critical') return e.priority === Priority.HIGH && e.status !== EmailStatus.SENT;
-                          return e.status === EmailStatus.SLA_BREACHED;
+                          return e.ragMeta?.escalation_sent === true;
                         }).every(e => selectedEmailIds.has(e.id))}
                         onChange={(e) => {
                           if (e.target.checked) {
@@ -695,7 +695,7 @@ const App: React.FC = () => {
                                 if (dashboardView === 'pending') return e.status !== EmailStatus.SENT && e.status !== EmailStatus.AUTO_RESOLVED;
                                 if (dashboardView === 'resolved') return e.status === EmailStatus.AUTO_RESOLVED;
                                 if (dashboardView === 'critical') return e.priority === Priority.HIGH && e.status !== EmailStatus.SENT;
-                                return e.status === EmailStatus.SLA_BREACHED;
+                                return e.ragMeta?.escalation_sent === true;
                               })
                               .map(e => e.id);
                             setSelectedEmailIds(new Set(ids));
@@ -724,7 +724,7 @@ const App: React.FC = () => {
                     } else if (dashboardView === 'critical') {
                       filteredEmails = emails.filter(e => e.priority === Priority.HIGH && e.status !== EmailStatus.SENT);
                     } else if (dashboardView === 'breached') {
-                      filteredEmails = emails.filter(e => e.status === EmailStatus.SLA_BREACHED);
+                      filteredEmails = emails.filter(e => e.ragMeta?.escalation_sent === true);
                     }
 
                     if (filteredEmails.length === 0) {

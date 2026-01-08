@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Shield, Key, User as UserIcon, Building2, Briefcase, Zap, CheckCircle2, Inbox, Trophy } from 'lucide-react';
+import ConnectEmailButton from './ConnectEmailButton';
 import { User } from '../types';
 import { api } from '../services/api';
 
@@ -202,6 +203,9 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user }) => {
                             </button>
                         </div>
                     </form>
+
+                    {/* NEW OAUTH BUTTON */}
+                    <ConnectEmailButton />
                 </div>
             )}
         </div>

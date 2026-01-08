@@ -15,6 +15,8 @@ app.use(express.json());
 app.use('/api', routes);
 import webhookRoutes from './routes/webhook.routes';
 app.use('/webhooks', webhookRoutes);
+import authRoutes from './routes/auth.routes';
+app.use('/auth', authRoutes);
 
 const PORT = process.env.PORT || 4000;
 
@@ -26,51 +28,39 @@ emailService.init().then(() => {
 });
 
 // Initialize Gmail Watch (if configured)
-import { GmailService } from './services/gmail.service';
-if (process.env.GOOGLE_REFRESH_TOKEN && process.env.PUBSUB_TOPIC_NAME) {
-    const gmailService = new GmailService();
-    gmailService.watch().catch(err => console.error("Failed to start Gmail Watch:", err.message));
-} else {
-    console.log("Gmail Webhooks skipped (GOOGLE_REFRESH_TOKEN or PUBSUB_TOPIC_NAME missing)");
-}
+// Initialize Gmail Watch
+// Initialize Gmail Watch
+import { gmailService } from './services/gmail.service';
 
-/* 
-// POLLING DISABLED - Relying on Gmail Push Notifications (Webhooks)
-let isProcessing = false;
-
-setInterval(async () => {
-    if (isProcessing) {
-        console.log("Previous poll still processing. Skipping...");
-        return;
-    }
-
-    isProcessing = true;
-    console.log("Auto-processing...");
+const startServer = async () => {
     try {
-        await processEmails();
-        await checkSLA();
-    } catch (e) {
-        console.error("Auto-process failed:", e);
-    } finally {
-        isProcessing = false;
+        await gmailService.loadCredentials();
+        await gmailService.watch();
+    } catch (err: any) {
+        console.error("Gmail Service Startup Error:", err.message);
     }
-    console.log("Next poll in 10 seconds...");
-}, 10000); 
-*/
-console.log("IMAP Polling is DISABLED. Waiting for Webhook events...");
 
-const server = app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+    /* 
+    // POLLING DISABLED - Relying on Gmail Push Notifications (Webhooks)
+    ...
+    */
+    console.log("IMAP Polling is DISABLED. Waiting for Webhook events...");
 
-// Graceful shutdown
-const shutdown = () => {
-    console.log('Received kill signal, shutting down gracefully');
-    server.close(() => {
-        console.log('Server closed');
-        process.exit(0);
+    const server = app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
     });
+
+    // Graceful shutdown
+    const shutdown = () => {
+        console.log('Received kill signal, shutting down gracefully');
+        server.close(() => {
+            console.log('Server closed');
+            process.exit(0);
+        });
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
 };
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+startServer();

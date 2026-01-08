@@ -6,7 +6,7 @@ export const EmailModel = {
             .from('emails')
             .select(`
                 id, subject, status, confidence_score, body_text, generated_reply, 
-                from_email, created_at, priority, intent, token_used, cc_email_sent_to,
+                from_email, created_at, priority, intent, token_used, cc_email_sent_to, rag_meta,
                 departments (name)
             `)
             .order('created_at', { ascending: false });

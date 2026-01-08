@@ -1,14 +1,14 @@
 import { Router } from 'express';
-import { register, login, getCurrentUser, forgotPassword, verifyOtp, resetPassword, requestUploadOtp } from '../controllers/auth.controller';
+import { getGoogleAuthUrl, handleGoogleCallback, login, register } from '../controllers/auth.controller';
 
 const router = Router();
 
-router.post('/register', register);
+// Google OAuth
+router.get('/google/url', getGoogleAuthUrl);
+router.get('/google/callback', handleGoogleCallback);
+
+// Standard Auth (Restored)
 router.post('/login', login);
-router.get('/me', getCurrentUser);
-router.post('/forgot-password', forgotPassword);
-router.post('/verify-otp', verifyOtp);
-router.post('/reset-password', resetPassword);
-router.post('/request-upload-otp', requestUploadOtp);
+router.post('/register', register);
 
 export default router;

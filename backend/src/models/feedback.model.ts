@@ -78,9 +78,44 @@ export const FeedbackModel = {
         const sum = data.reduce((acc, curr) => acc + (curr.rating || 0), 0);
         const avg = total > 0 ? (sum / total).toFixed(2) : 0;
 
+        // --- TREND CALCULATION ---
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+        let currentSum = 0;
+        let currentCount = 0;
+        let prevSum = 0;
+        let prevCount = 0;
+
+        data.forEach(row => {
+            const date = new Date(row.created_at);
+            if (date >= sevenDaysAgo) {
+                currentSum += row.rating;
+                currentCount++;
+            } else if (date >= fourteenDaysAgo && date < sevenDaysAgo) {
+                prevSum += row.rating;
+                prevCount++;
+            }
+        });
+
+        const currentAvg = currentCount > 0 ? currentSum / currentCount : 0;
+        const prevAvg = prevCount > 0 ? prevSum / prevCount : 0;
+
+        let trendPercent = 0;
+        if (prevAvg > 0) {
+            trendPercent = ((currentAvg - prevAvg) / prevAvg) * 100;
+        } else if (currentAvg > 0) {
+            trendPercent = 100; // 0 to something is 100% increase
+        }
+
+        const trendDirection = trendPercent > 0 ? 'up' : trendPercent < 0 ? 'down' : 'neutral';
+
         return {
             total_reviews: total,
             average_rating: parseFloat(avg as string),
+            trend: Math.round(trendPercent),
+            trend_direction: trendDirection,
             rows: data
         };
     },

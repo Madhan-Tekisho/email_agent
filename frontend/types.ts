@@ -83,6 +83,7 @@ export interface EmailData {
   tokenUsed?: number;
   history: EmailHistoryEvent[];
   feedback?: 'positive' | 'negative' | null;
+  ragMeta?: { escalation_sent?: boolean; reminder_sent?: boolean;[key: string]: any };
 }
 
 export interface User {

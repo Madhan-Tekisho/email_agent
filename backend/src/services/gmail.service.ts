@@ -2,23 +2,51 @@
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { simpleParser } from 'mailparser';
+import { supabase } from '../db';
+
 
 export class GmailService {
     private oauth2Client: OAuth2Client;
     private gmail: any;
+    private userId: string | null = null;
 
     constructor() {
         this.oauth2Client = new google.auth.OAuth2(
             process.env.GOOGLE_CLIENT_ID,
             process.env.GOOGLE_CLIENT_SECRET,
-            'https://developers.google.com/oauthplayground' // Redirect URL (common for refresh tokens)
+            process.env.GOOGLE_REDIRECT_URI || 'http://localhost:4000/auth/google/callback'
         );
-
-        this.oauth2Client.setCredentials({
-            refresh_token: process.env.GOOGLE_REFRESH_TOKEN
-        });
-
         this.gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+    }
+
+    /**
+     * Load credentials from DB (system_settings) or Fallback to ENV
+     */
+    async loadCredentials() {
+        console.log("Loading Gmail Credentials...");
+
+        // 1. Try DB
+        const { data: userRef } = await supabase.from('system_settings').select('email_value').eq('email_key', 'GMAIL_USER').single();
+        const { data: tokenRef } = await supabase.from('system_settings').select('email_value').eq('email_key', 'GOOGLE_REFRESH_TOKEN').single();
+
+        let refreshToken = tokenRef?.email_value || process.env.GOOGLE_REFRESH_TOKEN;
+        this.userId = userRef?.email_value || 'tekishoagent@gmail.com'; // Default or Env
+
+        if (refreshToken) {
+            console.log(`Using Credentials for: ${this.userId} (Source: ${tokenRef ? 'Database' : '.env'})`);
+            this.oauth2Client.setCredentials({
+                refresh_token: refreshToken
+            });
+        } else {
+            console.warn("No Refresh Token found in DB or .env");
+        }
+    }
+
+    async reloadConfig() {
+        console.log("Reloading Gmail Configuration...");
+        await this.stop();
+        await this.loadCredentials();
+        await this.watch();
     }
 
     /**
@@ -191,3 +219,5 @@ export class GmailService {
         }
     }
 }
+
+export const gmailService = new GmailService();
