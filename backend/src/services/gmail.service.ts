@@ -23,17 +23,21 @@ export class GmailService {
      * Load credentials from DB (system_settings) or Fallback to ENV
      */
     async loadCredentials() {
-        console.log("Loading Gmail Credentials...");
+        console.log("Loading Gmail Credentials from DB...");
 
         // 1. Try DB
-        const { data: userRef } = await supabase.from('system_settings').select('email_value').eq('email_key', 'GMAIL_USER').single();
-        const { data: tokenRef } = await supabase.from('system_settings').select('email_value').eq('email_key', 'GOOGLE_REFRESH_TOKEN').single();
+        const { data: userRef, error: userError } = await supabase.from('system_settings').select('email_value').eq('email_key', 'GMAIL_USER').single();
+        const { data: tokenRef, error: tokenError } = await supabase.from('system_settings').select('email_value').eq('email_key', 'GOOGLE_REFRESH_TOKEN').single();
+
+        // DEBUG: Log what we got from DB
+        console.log("DEBUG - userRef:", userRef, "error:", userError?.message);
+        console.log("DEBUG - tokenRef:", tokenRef ? { ...tokenRef, email_value: tokenRef.email_value?.substring(0, 20) + '...' } : null, "error:", tokenError?.message);
 
         let refreshToken = tokenRef?.email_value || process.env.GOOGLE_REFRESH_TOKEN;
         this.userId = userRef?.email_value || 'tekishoagent@gmail.com'; // Default or Env
 
         if (refreshToken) {
-            console.log(`Using Credentials for: ${this.userId} (Source: ${tokenRef ? 'Database' : '.env'})`);
+            console.log(`Using Credentials for: ${this.userId} (Source: ${tokenRef?.email_value ? 'Database' : '.env'})`);
             this.oauth2Client.setCredentials({
                 refresh_token: refreshToken
             });

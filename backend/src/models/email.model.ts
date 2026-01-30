@@ -123,5 +123,22 @@ export const EmailModel = {
         }
 
         return { rows: data || [], rowCount: 1 };
+    },
+
+    updateGeneratedReply: async (id: string | number, reply: string, confidence: number) => {
+        const { data, error } = await supabase
+            .from('emails')
+            .update({
+                generated_reply: reply,
+                confidence_score: confidence / 100 // Convert to 0-1 range
+            })
+            .eq('id', id);
+
+        if (error) {
+            console.error('updateGeneratedReply error:', error);
+            throw error;
+        }
+
+        return { rows: data || [], rowCount: 1 };
     }
 };

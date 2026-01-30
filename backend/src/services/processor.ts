@@ -33,10 +33,8 @@ export const processEmails = async () => {
     }
 };
 
-import { GmailService } from './gmail.service';
+import { gmailService } from './gmail.service'; // Use shared singleton
 import { FeedbackService } from './feedback.service';
-
-const gmailService = new GmailService();
 const feedbackService = new FeedbackService();
 
 export const processSingleEmail = async (email: any) => {

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { EmailModel } from '../models/email.model';
 import { EmailService } from '../services/email.service';
 import { FeedbackService } from '../services/feedback.service';
+import { AIService } from '../services/ai.service';
 
 export const EmailController = {
     getPending: async (req: Request, res: Response) => {
@@ -21,6 +22,7 @@ export const EmailController = {
 
     approve: async (req: Request, res: Response) => {
         const { id } = req.params;
+        const { customContent } = req.body || {};
         const user = (req as any).user;
         const actor = user?.email || 'Unknown User';
 
@@ -29,8 +31,9 @@ export const EmailController = {
             if (!email) return res.status(404).send("Email not found");
 
             const emailService = new EmailService();
-            // email.generated_reply comes from the updated model query
-            await emailService.sendEmail(email.from_email, "Re: " + email.subject, email.generated_reply || "No reply generated", undefined);
+            // Use customContent if provided (user edited), otherwise fall back to generated_reply
+            const replyContent = customContent || email.generated_reply || "No reply generated";
+            await emailService.sendEmail(email.from_email, "Re: " + email.subject, replyContent, undefined);
 
             // Update status without history (history column doesn't exist)
             await EmailModel.updateStatus(id, 'human_answered');
@@ -143,6 +146,42 @@ export const EmailController = {
             res.json({ success: true });
         } catch (e: any) {
             console.error(e);
+            res.status(500).json({ error: e.message });
+        }
+    },
+
+    regenerateDraft: async (req: Request, res: Response) => {
+        const { id } = req.params;
+        try {
+            const email = await EmailModel.getByIdWithDraft(id);
+            if (!email) return res.status(404).json({ error: "Email not found" });
+
+            const aiService = new AIService();
+
+            // Search for relevant context from the knowledge base
+            const contextDocs = await aiService.searchContext(
+                email.subject + " " + email.body_text,
+                email.dept_name || 'Other'
+            );
+
+            // Generate a new reply
+            const result = await aiService.generateReply(
+                email.subject,
+                email.body_text,
+                contextDocs,
+                email.dept_name || 'Other'
+            );
+
+            // Update the generated_reply in the database
+            await EmailModel.updateGeneratedReply(id, result.reply, result.confidence);
+
+            res.json({
+                success: true,
+                draft: result.reply,
+                confidence: result.confidence
+            });
+        } catch (e: any) {
+            console.error("Regenerate draft error:", e);
             res.status(500).json({ error: e.message });
         }
     }

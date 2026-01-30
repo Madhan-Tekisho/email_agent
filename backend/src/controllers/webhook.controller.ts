@@ -1,9 +1,7 @@
 
 import { Request, Response } from 'express';
-import { GmailService } from '../services/gmail.service';
+import { gmailService } from '../services/gmail.service'; // Use the shared singleton
 import { processSingleEmail } from '../services/processor'; // We will create this export next
-
-const gmailService = new GmailService();
 
 export const handleGmailWebhook = async (req: Request, res: Response) => {
     try {

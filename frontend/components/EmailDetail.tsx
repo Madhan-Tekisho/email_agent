@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { EmailData, DocumentItem, EmailStatus, Priority } from '../types';
-import { draftResponseWithGemini } from '../services/geminiService';
-import { X, Sparkles, Send, Clock, FileText, AlertTriangle, UserCheck, ShieldAlert, Cpu, Database, ChevronRight, ThumbsUp, ThumbsDown, BookOpen, ExternalLink, CheckCircle2, Timer } from 'lucide-react';
+import { api } from '../services/api';
+import { X, Sparkles, Send, Clock, FileText, AlertTriangle, UserCheck, ShieldAlert, Cpu, Database, ChevronRight, ThumbsUp, ThumbsDown, BookOpen, ExternalLink, CheckCircle2 } from 'lucide-react';
 
 interface EmailDetailProps {
    email: EmailData;
@@ -16,10 +16,17 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ email, documents, onClose, on
    const [isGenerating, setIsGenerating] = useState(false);
    const [activeTab, setActiveTab] = useState<'response' | 'history'>('response');
    const [feedback, setFeedback] = useState<'positive' | 'negative' | null>(null);
-   const [autoSendTimer, setAutoSendTimer] = useState<number | null>(null);
+   const initializedEmailIdRef = useRef<string | null>(null);
 
    useEffect(() => {
       if (!email) return;
+
+      // Only initialize the draft when opening a new email (different email ID)
+      if (initializedEmailIdRef.current === email.id) {
+         return; // Already initialized for this email, don't reset user's edits
+      }
+
+      initializedEmailIdRef.current = email.id;
 
       if (agentActive && !email.suggestedResponse && email.status !== EmailStatus.SENT && email.status !== EmailStatus.AUTO_RESOLVED) {
          handleGenerateDraft();
@@ -30,31 +37,16 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ email, documents, onClose, on
 
    if (!email) return null;
 
-   useEffect(() => {
-      if (autoSendTimer === null) return;
-
-      if (autoSendTimer > 0) {
-         const timer = setTimeout(() => {
-            setAutoSendTimer(prev => (prev !== null ? prev - 1 : null));
-         }, 1000);
-         return () => clearTimeout(timer);
-      } else if (autoSendTimer === 0) {
-         // Timer finished, send response
-         onSendResponse(email.id, draft);
-         setAutoSendTimer(null);
-      }
-   }, [autoSendTimer, draft, email.id, onSendResponse]);
-
    const handleGenerateDraft = async () => {
       setIsGenerating(true);
-      const response = await draftResponseWithGemini(email, documents);
-      setDraft(response);
-      setIsGenerating(false);
-
-      // Start auto-send countdown (3 seconds)
-      if (agentActive) {
-         setAutoSendTimer(3);
+      try {
+         const result = await api.regenerateDraft(email.id);
+         setDraft(result.draft);
+      } catch (error: any) {
+         console.error("Failed to regenerate draft:", error);
+         setDraft("Error generating draft: " + (error.message || "Unknown error"));
       }
+      setIsGenerating(false);
    };
 
    const handleFeedback = (type: 'positive' | 'negative') => {
@@ -63,14 +55,6 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ email, documents, onClose, on
 
    const handleDraftChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setDraft(e.target.value);
-      // Cancel auto-send if user edits the draft
-      if (autoSendTimer !== null) {
-         setAutoSendTimer(null);
-      }
-   };
-
-   const cancelAutoSend = () => {
-      setAutoSendTimer(null);
    };
 
    return (
@@ -252,22 +236,13 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ email, documents, onClose, on
                         Discard
                      </button>
 
-                     {autoSendTimer !== null ? (
-                        <button
-                           onClick={cancelAutoSend}
-                           className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg text-xs font-bold shadow-lg shadow-emerald-900/10 flex items-center gap-2 transition-all uppercase tracking-wide transform active:scale-95 animate-pulse"
-                        >
-                           <Timer className="w-3.5 h-3.5 spin-slow" /> Sending in {autoSendTimer}s... (Cancel)
-                        </button>
-                     ) : (
-                        <button
-                           onClick={() => onSendResponse(email.id, draft)}
-                           disabled={!draft || email.status === EmailStatus.SENT || email.status === EmailStatus.AUTO_RESOLVED}
-                           className="bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 rounded-lg text-xs font-bold shadow-lg shadow-slate-900/10 flex items-center gap-2 transition-all uppercase tracking-wide transform active:scale-95"
-                        >
-                           <Send className="w-3.5 h-3.5" /> {email.status === EmailStatus.SENT ? 'Sent' : 'Approve & Send'}
-                        </button>
-                     )}
+                     <button
+                        onClick={() => onSendResponse(email.id, draft)}
+                        disabled={!draft || email.status === EmailStatus.SENT || email.status === EmailStatus.AUTO_RESOLVED}
+                        className="bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-50 disabled:cursor-not-allowed px-6 py-2.5 rounded-lg text-xs font-bold shadow-lg shadow-slate-900/10 flex items-center gap-2 transition-all uppercase tracking-wide transform active:scale-95"
+                     >
+                        <Send className="w-3.5 h-3.5" /> {email.status === EmailStatus.SENT ? 'Sent' : 'Approve & Send'}
+                     </button>
                   </div>
                </div>
             </div>

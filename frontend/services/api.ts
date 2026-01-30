@@ -49,12 +49,25 @@ export const api = {
         return { emails, metrics: data.metrics };
     },
 
-    async approveEmail(id: string): Promise<void> {
-        await fetch(`${API_BASE}/emails/${id}/approve`, { method: 'POST' });
+    async approveEmail(id: string, customContent?: string): Promise<void> {
+        await fetch(`${API_BASE}/emails/${id}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customContent })
+        });
     },
 
     async rejectEmail(id: string): Promise<void> {
         await fetch(`${API_BASE}/emails/${id}/reject`, { method: 'POST' });
+    },
+
+    async regenerateDraft(id: string): Promise<{ draft: string; confidence: number }> {
+        const res = await fetch(`${API_BASE}/emails/${id}/regenerate`, { method: 'POST' });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Failed to regenerate draft');
+        }
+        return res.json();
     },
 
     async revertEmailStatus(id: string): Promise<void> {

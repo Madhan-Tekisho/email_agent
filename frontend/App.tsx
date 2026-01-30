@@ -277,7 +277,7 @@ const App: React.FC = () => {
 
   const handleSendResponse = async (emailId: string, content: string) => {
     try {
-      await api.approveEmail(emailId);
+      await api.approveEmail(emailId, content);
       // Optimistic update
       setEmails(prev => prev.map(e => e.id === emailId ? { ...e, status: EmailStatus.SENT, suggestedResponse: content, history: [...e.history, { id: `h-${Date.now()}`, timestamp: new Date().toISOString(), action: 'Responded', actor: user?.name || 'User' }] } : e));
       setSelectedEmailId(null);
